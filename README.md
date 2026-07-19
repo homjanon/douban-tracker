@@ -85,3 +85,23 @@ python tracker.py
 - `investor_profile.json` / `nickname_rules.json` 可直接编辑，无需改代码。
 - 时区：所有时间均为北京时间（UTC+8）。
 - Pages 看板右上角「🔄 手动触发更新」按钮跳转 Actions 页，点 Run workflow 即可即时运行（零密钥、安全）。
+
+### 人工确认 SOP（pending 建议区）
+LLM 拿不准、或未触发自动回写阀门的持仓/昵称，会进入 `latest.json` 的 `pending_positions` / `pending_nicknames`（**仅建议、绝不自动写回**），需在 `state.json` 人工拍板后才生效。
+
+**① 去哪里看**
+- Pages 看板底部黄色提示框「⚠️ 以下为 LLM 建议…」，分「持仓建议」「新昵称映射建议」两类，每条附 `依据`。
+- 或直接看 `data/latest.json` 的 `pending_positions`（数组：含 `name/code/action/evidence/price`）、`pending_nicknames`（字典）。
+
+**② 认可 → 写进 `state.json`**
+- 加持仓：在 `positions.positions` 数组追加一项（`name` 必填、`code` 有则填、`action` 填 买入/持有/卖出、`cost_price` 仅发言明确提成本才写 `约xx元` 否则 `"暂无"`、`first_seen` 用当天 `YYYY-MM-DD`）
+- 加昵称：在 `nickname_map` 对象加 `"昵称": "真实标的"` 键值
+- 提交后下次运行即纳入已知数据，同名 pending 不再出现。
+
+**③ 不认可 / 误判 → 不用管**
+`pending` 永不自动污染 `state.json`，忽略即可；反复出现的误判也不影响持仓表。
+
+**④ 最小日常流程**
+1. 看完板，扫一眼底部"待确认"区；2. 认可的本地改 `state.json` → `git commit && git push`；3. 不认可的忽略；4. 不确定的观察几天再定。
+
+> 修正已自动入表的持仓：直接编辑 `state.json` 中对应条目字段即可，非"暂无"的成本价下次提纯会保留你写的值、不覆盖。
