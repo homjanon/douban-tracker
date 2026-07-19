@@ -86,15 +86,18 @@ def build_report(ts, summary, posts, analysis, today_count):
     L.append(f"> {summary}")
     L.append("")
 
-    # 持仓/昵称研判结果
+    # 持仓/昵称研判结果（仅作建议，未自动写入 state.json）
+    L.append("> ⚠️ 以下为 LLM **建议**，未自动写入状态文件。请人工确认后，"
+             "本地编辑 `state.json` 的 `nickname_map` / `positions` 并 push 生效。")
+    L.append("")
     if analysis.get("new_positions"):
-        L.append("## 持仓研判（LLM 宽松判定，待你确认）")
+        L.append("## 持仓建议（待你确认）")
         for p in analysis["new_positions"]:
             L.append(f"- **{p.get('name','?')}**（{p.get('code','无代码')}）"
                      f"〔{p.get('action','?')}〕— 依据：{p.get('evidence','')}")
         L.append("")
     if analysis.get("new_nicknames"):
-        L.append("## 新昵称映射（待你确认）")
+        L.append("## 新昵称映射建议（待你确认）")
         for k, v in analysis["new_nicknames"].items():
             L.append(f"- `{k}` = {v}")
         L.append("")
@@ -153,7 +156,7 @@ def main():
                 p["change"] = q.get("change", "")
                 p["price_source"] = q.get("source", "")
 
-    # 4. 写 latest.json（双结构，对齐 xueqiu-tracker）
+    # 4. 写 latest.json（LLM 产出仅作【待确认建议】，不自动写 state）
     now = datetime.datetime.now(CST)
     ts = now.strftime("%Y-%m-%d %H:%M:%S")
     latest = {
@@ -161,8 +164,8 @@ def main():
         "daily_summary": summary,
         "today_count": len(new),
         "showing_fallback": showing_fallback,
-        "new_positions": analysis["new_positions"],
-        "new_nicknames": analysis["new_nicknames"],
+        "pending_positions": analysis["new_positions"],     # 待人工确认，不自动入表
+        "pending_nicknames": analysis["new_nicknames"],     # 待人工确认，不自动映射
         "mentions": analysis["mentions"],
         "posts": display,
         "user": {"name": name, "count": len(display)},
@@ -170,33 +173,19 @@ def main():
     with open(f"{DATA_DIR}/latest.json", "w", encoding="utf-8") as f:
         json.dump(latest, f, ensure_ascii=False, indent=2)
 
-    # 5. 写 reports
+    # 5. 写 reports（标注待确认）
     md = build_report(ts, summary, display, analysis, len(new))
     with open(f"{REPORT_DIR}/{now.strftime('%Y-%m-%d')}.md", "w", encoding="utf-8") as f:
         f.write(md)
 
-    # 6. 回写昵称/持仓到 state（workflow 负责 commit 持久化）
-    if analysis["new_nicknames"]:
-        st["nickname_map"].update(analysis["new_nicknames"])
-    if analysis["new_positions"]:
-        existing = {p.get("name") for p in st["positions"]["positions"]}
-        for np in analysis["new_positions"]:
-            if np.get("name") and np["name"] not in existing:
-                st["positions"]["positions"].append({
-                    "name": np.get("name"),
-                    "code": np.get("code", ""),
-                    "action": np.get("action", ""),
-                    "first_seen": ts,
-                })
-                existing.add(np["name"])
-    # 更新游标为最新发言时间
+    # 6. 仅更新游标（state 的 nickname_map/positions 只在人工确认后由你本地改 state.json 生效）
     if display:
         st["last_cursor"] = max((p.get("date", "") + p.get("sortable_time", "") for p in display))
     st["updated_at"] = ts
     save_state(st)
 
-    print(f"[完成] data/latest.json + reports/{now.strftime('%Y-%m-%d')}.md 已生成；"
-          f"昵称→{len(st['nickname_map'])} 持仓→{len(st['positions']['positions'])}")
+    print(f"[完成] data/latest.json(建议区) + reports/{now.strftime('%Y-%m-%d')}.md 已生成；"
+          f"昵称→{len(st['nickname_map'])} 持仓→{len(st['positions']['positions'])}（仅确认项）")
 
 
 if __name__ == "__main__":

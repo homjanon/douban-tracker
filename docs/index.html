@@ -29,7 +29,7 @@
 <div id="content">读取 data/latest.json 中…</div>
 
 <script>
-fetch('/data/latest.json')
+fetch('../data/latest.json')
   .then(r => r.json())
   .then(d => render(d))
   .catch(e => document.getElementById('content').innerHTML =
@@ -44,9 +44,9 @@ function render(d) {
 
   h += '<div class="summary">' + esc(d.daily_summary || '（无归纳）') + '</div>';
 
-  if (d.new_positions && d.new_positions.length) {
-    h += '<div class="card"><h2>持仓研判（LLM 宽松判定，待确认）</h2>';
-    d.new_positions.forEach(p => {
+  if (d.pending_positions && d.pending_positions.length) {
+    h += '<div class="card"><h2>持仓建议（待确认，未自动写入）</h2>';
+    d.pending_positions.forEach(p => {
       h += '<div class="post"><b>' + esc(p.name) + '</b>'
          + (p.code ? ' <span class="tag">' + esc(p.code) + '</span>' : '')
          + ' ［' + esc(p.action || '?') + '］'
@@ -56,9 +56,9 @@ function render(d) {
     h += '</div>';
   }
 
-  if (d.new_nicknames && Object.keys(d.new_nicknames).length) {
-    h += '<div class="card"><h2>新昵称映射（待确认）</h2>';
-    for (const [k, v] of Object.entries(d.new_nicknames))
+  if (d.pending_nicknames && Object.keys(d.pending_nicknames).length) {
+    h += '<div class="card"><h2>新昵称映射建议（待确认，未自动写入）</h2>';
+    for (const [k, v] of Object.entries(d.pending_nicknames))
       h += '<div class="post"><code>' + esc(k) + '</code> = ' + esc(v) + '</div>';
     h += '</div>';
   }
