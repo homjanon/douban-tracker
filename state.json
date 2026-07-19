@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-07-19 18:05:50",
-  "last_cursor": "2026-07-1918:01:25",
+  "updated_at": "2026-07-19 18:50:59",
+  "last_cursor": "2026-07-1918:30:12",
   "nickname_map": {
     "C50": "创业板50ETF",
     "cc": "华安文体健康混合",
@@ -239,11 +239,12 @@
         "cost_price": "暂无",
         "market_value": "暂无",
         "note": "场外忍耐至本周五，狠狠买入",
-        "last_note": "场外忍耐至本周五，狠狠买入",
+        "last_note": "提及‘忍到本周五才狠狠干’，暗示已在低位或冰点期介…",
         "first_seen": "2026-07-19",
         "current_price": "暂无"
       }
     ]
   },
-  "total_archived": 124
+  "total_archived": 124,
+  "_seen_ids": []
 }
