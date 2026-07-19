@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-07-19 17:55:13",
-  "last_cursor": "2026-07-1917:52:50",
+  "updated_at": "2026-07-19 18:05:50",
+  "last_cursor": "2026-07-1918:01:25",
   "nickname_map": {
     "C50": "创业板50ETF",
     "cc": "华安文体健康混合",
@@ -245,5 +245,5 @@
       }
     ]
   },
-  "total_archived": 123
+  "total_archived": 124
 }
