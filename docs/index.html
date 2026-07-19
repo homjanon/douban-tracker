@@ -65,7 +65,13 @@ function render(d) {
     const secs = [['market_background','📌 市场背景'],['core_views','📌 楼主核心观点'],
                   ['today_actions','📌 今日操作'],['position_dynamics','📌 持仓动态'],
                   ['favored_sectors','📌 看好板块/方向'],['risk_warnings','📌 风险提示']];
-    secs.forEach(([k, t]) => { if (ov[k]) h += '<h3>'+t+'</h3><pre>'+esc(ov[k])+'</pre>'; });
+    secs.forEach(([k, t]) => {
+      if (ov[k]) {
+        h += '<h3>'+t+'</h3>';
+        // 含 Markdown 表格则渲染成 <table>，否则原样 <pre>
+        h += isMdTable(ov[k]) ? mdTable(ov[k]) : '<pre>'+esc(ov[k])+'</pre>';
+      }
+    });
     h += '</div>';
   }
 
@@ -120,6 +126,29 @@ function table(rows) {
   let t = '<table><thead><tr>' + rows[0].map(c => '<th>'+esc(c)+'</th>').join('') + '</tr></thead><tbody>';
   rows.slice(1).forEach(r => t += '<tr>' + r.map(c => '<td>'+esc(c)+'</td>').join('') + '</tr>');
   return t + '</tbody></table>';
+}
+
+// 判断文本是否含 Markdown 表格（有表头行 + 分隔行 |---|）
+function isMdTable(s) {
+  if (!s || typeof s !== 'string') return false;
+  const lines = s.trim().split('\n').map(l => l.trim()).filter(Boolean);
+  for (let i = 0; i + 1 < lines.length; i++) {
+    if (lines[i].includes('|') && /^\|[\s:|-]+\|$/.test(lines[i + 1])) return true;
+  }
+  return false;
+}
+
+// 把 Markdown 表格文本渲染为 <table>
+function mdTable(s) {
+  const lines = s.trim().split('\n').map(l => l.trim()).filter(Boolean);
+  const rows = [];
+  for (const line of lines) {
+    if (/^\|[\s:|-]+\|$/.test(line)) continue;        // 跳过分隔行
+    const cells = line.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+    rows.push(cells);
+  }
+  if (!rows.length) return '<pre>' + esc(s) + '</pre>';
+  return table(rows);
 }
 function esc(s) {
   return (s == null ? '' : String(s)).replace(/[&<>"]/g,

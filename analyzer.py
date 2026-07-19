@@ -38,6 +38,14 @@ def load_investor_profile():
         return ""
 
 
+# ============ 已确认错误项黑名单（历史模板识别错误，禁止再出现）============
+INVALID_HINTS = (
+    "以下为历史上被错误识别的伪标的，请**不要再**将它们写入持仓/今日操作/持仓动态/昵称映射："
+    "①「国际复材」——仅为昵称线索，并非楼主持仓，不要再映射或写入；"
+    "②「鼎泰高科」——历史上识别错误，不属于楼主持仓，不要再出现。"
+)
+
+
 # ============ 通用 LLM 调用 ============
 def _post(backend, messages):
     key = backend.get("api_key")
@@ -149,7 +157,8 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions):
               "发现错误用户会后续指正，无需过度谨慎。"
               + ("\n\n黑话/昵称提示（已确认映射，权威）：\n" + hint if hint else "")
               + ("\n\n" + rules if rules else "")
-              + ("\n\n楼主投资风格画像（判断其操作意图时务必参考，避免误判）：\n" + profile if profile else ""))
+              + ("\n\n楼主投资风格画像（判断其操作意图时务必参考，避免误判）：\n" + profile if profile else "")
+              + ("\n\n" + INVALID_HINTS if INVALID_HINTS else ""))
     user = (f"现有昵称映射：\n{nick_lines}\n\n现有持仓：\n{pos_lines}\n\n"
             f"今日发言：\n{text_blob}\n\n"
             f"请输出 JSON：\n"
@@ -202,7 +211,8 @@ def build_daily_overview(posts, nickname_map, positions):
               "各字段独立成文、事实导向、不编造；行情数字无依据则留空。"
               + ("\n\n黑话/昵称提示（已确认映射，权威）：\n" + hint if hint else "")
               + ("\n\n" + rules if rules else "")
-              + ("\n\n楼主投资风格画像：\n" + profile if profile else ""))
+              + ("\n\n楼主投资风格画像：\n" + profile if profile else "")
+              + ("\n\n" + INVALID_HINTS if INVALID_HINTS else ""))
     user = (f"现有持仓：\n{pos_lines}\n\n现有昵称映射：\n{nick_lines}\n\n"
             f"今日发言：\n{text_blob}\n\n"
             f"请输出 JSON（6 个字段，均为字符串，可含 Markdown 列表/表格）：\n"
