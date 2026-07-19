@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-07-19 15:54:05",
-  "last_cursor": "2026-07-1912:21:01",
+  "updated_at": "2026-07-19 17:55:13",
+  "last_cursor": "2026-07-1917:52:50",
   "nickname_map": {
     "C50": "创业板50ETF",
     "cc": "华安文体健康混合",
@@ -230,8 +230,20 @@
         "cost_price": "约30元（2026年7月3日现价36.88元，浮盈约23%）",
         "last_note": "",
         "current_price": "38.02（0.93%）"
+      },
+      {
+        "name": "巨无霸",
+        "code": "",
+        "action": "买入",
+        "category": "",
+        "cost_price": "暂无",
+        "market_value": "暂无",
+        "note": "场外忍耐至本周五，狠狠买入",
+        "last_note": "场外忍耐至本周五，狠狠买入",
+        "first_seen": "2026-07-19",
+        "current_price": "暂无"
       }
     ]
   },
-  "total_archived": 105
+  "total_archived": 123
 }
