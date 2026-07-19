@@ -214,7 +214,8 @@ def build_daily_overview(posts, nickname_map, positions):
             f'"favored_sectors": "看好板块/方向（无序列表 - **板块**：理由）",'
             f'"risk_warnings": "风险提示（无序列表 - 「原文」——解读）"'
             f'}}\n'
-            f"只输出 JSON，不要解释。无内容字段给空字符串。")
+            f"只输出 JSON，不要解释。每个字段的值必须是**字符串**（即便是列表也请写成 Markdown 文本，不要输出 JSON 数组）；"
+            f"无内容字段给空字符串。")
 
     out = call_multi([{"role": "system", "content": system},
                       {"role": "user", "content": user}])
@@ -229,4 +230,18 @@ def build_daily_overview(posts, nickname_map, positions):
         data = {}
     keys = ("market_background", "core_views", "today_actions",
             "position_dynamics", "favored_sectors", "risk_warnings")
-    return {k: (data.get(k, "") or "").strip() for k in keys}
+    return {k: _to_text(data.get(k, "")) for k in keys}
+
+
+def _to_text(v):
+    """把 LLM 返回的任意类型安全转成文本（兼容 list/dict/数字/None）。"""
+    if v is None:
+        return ""
+    if isinstance(v, str):
+        return v.strip()
+    if isinstance(v, (list, tuple)):
+        # 列表元素逐行拼接；元素本身可能也是 dict/list，递归处理
+        return "\n".join(_to_text(x) for x in v if x not in (None, "")).strip()
+    if isinstance(v, dict):
+        return "\n".join(f"{k}：{_to_text(val)}" for k, val in v.items()).strip()
+    return str(v).strip()
