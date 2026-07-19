@@ -18,7 +18,6 @@ from analyzer import (daily_summary, analyze_positions_and_nicknames,
                       update_investor_profile)
 from nickname_rules import load_nickname_rules, rules_to_text
 from query_stock import query_stock
-from image_ocr import recognize_images
 
 CST = datetime.timezone(datetime.timedelta(hours=8))
 
@@ -505,31 +504,19 @@ def main():
 
     # 1. 抓取
     posts = scrape_user()
-    print(f"[抓取] 总 {len(posts)} 条")
+    print(f"[抓取] 总 {len(posts)} 条（已按当日 date 过滤，方案A：每日0点起当日全量）")
 
-    # 2. 增量：取游标之后（时间更新）的发言
-    cursor = st["last_cursor"]
-    new = [p for p in posts if (p.get("date", "") + p.get("sortable_time", "")) > cursor] if cursor else posts[:RECENT_N]
-    print(f"[增量] 新增 {len(new)} 条（游标 {cursor[:16] or '无'}）")
+    # 2. 当日全量展示：scrape_user 已按 date==today 过滤，直接采用全量
+    #    （不再用 last_cursor 二次裁剪，避免丢弃 0 点至上次运行之间的当日发言）
+    display = posts
+    showing_fallback = (len(display) == 0) and bool(posts)
 
-    # 无新增 → 用最近 RECENT_N 条兜底展示
-    showing_fallback = (len(new) == 0) and bool(posts)
-    display = new if new else posts[:RECENT_N]
-
-    # 3. 图片识别（前 3 张，失败兜底跳过，不影响主流程）
-    image_analysis = recognize_images(display, "")
-    image_context = "\n".join(f"- {x['desc']}" for x in image_analysis if x.get("desc")) or ""
-    if image_analysis:
-        print(f"[识图] 识别完成 {len(image_analysis)} 张，有效描述 {sum(1 for x in image_analysis if x.get('desc'))} 条")
-    else:
-        print("[识图] 无图片或识别跳过")
-
-    # 4. 研判（图片识别文字作为上下文注入）
+    # 3. 研判（纯文本，无图片识别）
     name = os.getenv("DOUBAN_TARGET_USER", "楼主")
     summary = daily_summary({"name": name, "posts": display})
     print(f"[归纳] {summary}")
-    analysis = analyze_positions_and_nicknames(display, st["nickname_map"], st["positions"], image_context)
-    overview = build_daily_overview(display, st["nickname_map"], st["positions"], image_context)
+    analysis = analyze_positions_and_nicknames(display, st["nickname_map"], st["positions"])
+    overview = build_daily_overview(display, st["nickname_map"], st["positions"])
     # 查价：对研判出的标的补实时价格
     for p in analysis["new_positions"]:
         if p.get("code"):
@@ -553,8 +540,12 @@ def main():
     for c in prof_changes:
         print(f"[画像更新] {c}")
 
-    # 6. 累计存档数更新
-    st["total_archived"] = st.get("total_archived", 0) + len(new)
+    # 6. 累计存档数更新（基于发言 id 跨运行去重，只累加本次新见到的，避免同日重复计）
+    seen_ids = set(st.get("_seen_ids", []))
+    fresh = [p for p in display if p.get("id") and p["id"] not in seen_ids]
+    st["total_archived"] = st.get("total_archived", 0) + len(fresh)
+    # 保留最近 500 个 id 用于去重，防止无限膨胀
+    st["_seen_ids"] = list((seen_ids | {p["id"] for p in display if p.get("id")}))[-500:]
 
     # 6.5 实时查价注入持仓（腾讯/天天基金，复用 query_stock）
     enrich_prices(st["positions"])
@@ -565,7 +556,7 @@ def main():
     latest = {
         "fetched_at": ts,
         "user": {"name": name, "count": len(display)},
-        "today_count": len(new),
+        "today_count": len(display),
         "total_archived": st["total_archived"],
         "showing_fallback": showing_fallback,
         "daily_summary": summary,
@@ -574,20 +565,19 @@ def main():
         "investor_profile": load_investor_profile(),  # 投资风格分析（已增量更新）
         "nickname_rules": load_nickname_rules(),      # 昵称规律（结构化列表）
         "nickname_map": st["nickname_map"],           # 已收录映射
-        "image_analysis": image_analysis,            # 图片识别结果（前3张，失败为空）
         "pending_positions": analysis["new_positions"],    # 待确认（LLM 研判辅助参考）
         "pending_nicknames": analysis["new_nicknames"],    # 待确认
         "applied_position_changes": [] if pos_blocked else pos_changes,  # 本次自动持仓变更（审计）
         "applied_profile_update": prof_changes,      # 本次自动画像变更（审计）
         "mentions": analysis["mentions"],
-        "aggregated": aggregate_posts(display, st["nickname_map"], st["positions"]) if len(new) > AGGREGATE_THRESHOLD else None,
+        "aggregated": aggregate_posts(display, st["nickname_map"], st["positions"]) if len(display) > AGGREGATE_THRESHOLD else None,
         "posts": display,
     }
     with open(f"{DATA_DIR}/latest.json", "w", encoding="utf-8") as f:
         json.dump(latest, f, ensure_ascii=False, indent=2)
 
     # 8. 写 reports（6 板块）
-    md = build_report(ts, name, summary, display, analysis, overview, len(new), st["total_archived"])
+    md = build_report(ts, name, summary, display, analysis, overview, len(display), st["total_archived"])
     with open(f"{REPORT_DIR}/{now.strftime('%Y-%m-%d')}.md", "w", encoding="utf-8") as f:
         f.write(md)
 

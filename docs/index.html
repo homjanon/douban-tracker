@@ -93,18 +93,6 @@ function render(d) {
     h += '</div>';
   }
 
-  // ③ 图片识别（前3张，失败则为空）
-  const imgs = d.image_analysis || [];
-  if (imgs.length) {
-    h += '<h2>🖼️ 图片识别</h2><div class="card">';
-    imgs.forEach(x => {
-      h += '<div class="post">';
-      if (x.url) h += '<a href="'+esc(x.url)+'" target="_blank" rel="noopener">🔗 原图</a><br>';
-      h += esc(x.desc || '（识别失败，已跳过）') + '</div>';
-    });
-    h += '</div>';
-  }
-
   // ④ 发言聚合 / 原始发言
   const posts = d.posts || [];
   h += '<h2>📝 发言（' + posts.length + ' 条）</h2><div class="card">';
