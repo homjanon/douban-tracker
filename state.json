@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-07-19 14:30:11",
-  "last_cursor": "2026-07-1811:01:11",
+  "updated_at": "2026-07-19 15:33:10",
+  "last_cursor": "2026-07-1912:21:01",
   "nickname_map": {
     "C50": "创业板50ETF",
     "cc": "华安文体健康混合",
@@ -212,8 +212,19 @@
         "category": "A股红利",
         "cost_price": "约30元（2026年7月3日现价36.88元，浮盈约23%）",
         "last_note": ""
+      },
+      {
+        "name": "观察策略",
+        "code": "",
+        "action": "买入",
+        "category": "",
+        "cost_price": "暂无",
+        "market_value": "暂无",
+        "note": "确立“冰点当日尾盘+次日分批”的潜在抄底计划，但今日未执行",
+        "last_note": "确立“冰点当日尾盘+次日分批”的潜在抄底计划，但今日未执行",
+        "first_seen": "2026-07-19"
       }
     ]
   },
-  "total_archived": 93
+  "total_archived": 104
 }
