@@ -1,0 +1,43 @@
+name: 豆瓣楼主发言追踪
+
+on:
+  schedule:
+    - cron: '0 10 * * 1-5'       # 北京时间 18:00（UTC+8 = UTC 10:00，工作日）
+  workflow_dispatch:            # 支持手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+
+      - name: 抓取并分析
+        env:
+          DOUBAN_COOKIE: ${{ secrets.DOUBAN_COOKIE }}
+          DOUBAN_GROUP_URLS: ${{ secrets.DOUBAN_GROUP_URLS }}
+          DOUBAN_TARGET_USER: ${{ secrets.DOUBAN_TARGET_USER }}
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
+        run: python tracker.py
+
+      - name: 提交数据回仓库
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data reports state.json
+          git diff --cached --quiet || git commit -m "chore: 每日追踪更新 $(date +%F)"
+          git push

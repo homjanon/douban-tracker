@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>豆瓣楼主发言追踪</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 860px; margin: 0 auto; padding: 24px; background: #fafafa; color: #222; }
+  h1 { font-size: 22px; border-bottom: 2px solid #07c160; padding-bottom: 8px; }
+  .meta { color: #888; font-size: 13px; margin: 8px 0 20px; }
+  .summary { background: #eafaf0; border-left: 4px solid #07c160; padding: 12px 16px;
+             border-radius: 4px; line-height: 1.6; }
+  .card { background: #fff; border-radius: 8px; padding: 16px; margin: 16px 0;
+          box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { font-size: 16px; margin: 0 0 8px; }
+  .tag { display: inline-block; background: #07c160; color: #fff; font-size: 12px;
+         padding: 1px 8px; border-radius: 10px; margin-left: 6px; }
+  .pos { color: #e4393c; } .neg { color: #07c160; }
+  .post { border-top: 1px solid #eee; padding: 10px 0; line-height: 1.5; }
+  .post .t { color: #999; font-size: 12px; }
+  .empty { color: #999; font-style: italic; }
+  .fallback { background: #fff7e6; border-left: 4px solid #faad14; padding: 8px 12px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>📊 豆瓣楼主发言追踪</h1>
+<div class="meta" id="meta">加载中…</div>
+<div id="content">读取 data/latest.json 中…</div>
+
+<script>
+fetch('/data/latest.json')
+  .then(r => r.json())
+  .then(d => render(d))
+  .catch(e => document.getElementById('content').innerHTML =
+    '<div class="empty">加载失败：' + e + '（请确认 Actions 已运行且 data/latest.json 已生成）</div>');
+
+function render(d) {
+  document.getElementById('meta').textContent =
+    '更新时间：' + (d.fetched_at || '?') + ' ｜ 当日新增：' + (d.today_count ?? 0) + ' 条';
+
+  let h = '';
+  if (d.showing_fallback) h += '<div class="fallback">⚠️ 本次无新增发言，以下为近期发言兜底展示。</div>';
+
+  h += '<div class="summary">' + esc(d.daily_summary || '（无归纳）') + '</div>';
+
+  if (d.new_positions && d.new_positions.length) {
+    h += '<div class="card"><h2>持仓研判（LLM 宽松判定，待确认）</h2>';
+    d.new_positions.forEach(p => {
+      h += '<div class="post"><b>' + esc(p.name) + '</b>'
+         + (p.code ? ' <span class="tag">' + esc(p.code) + '</span>' : '')
+         + ' ［' + esc(p.action || '?') + '］'
+         + (p.price ? ' 现价 ' + esc(p.price) + ' (' + esc(p.change || '') + ')' : '')
+         + '<br><span class="t">依据：' + esc(p.evidence || '') + '</span></div>';
+    });
+    h += '</div>';
+  }
+
+  if (d.new_nicknames && Object.keys(d.new_nicknames).length) {
+    h += '<div class="card"><h2>新昵称映射（待确认）</h2>';
+    for (const [k, v] of Object.entries(d.new_nicknames))
+      h += '<div class="post"><code>' + esc(k) + '</code> = ' + esc(v) + '</div>';
+    h += '</div>';
+  }
+
+  const posts = d.posts || [];
+  h += '<div class="card"><h2>发言（' + posts.length + ' 条）</h2>';
+  if (!posts.length) h += '<div class="empty">今日无发言</div>';
+  posts.forEach(p => {
+    h += '<div class="post"><span class="t">' + esc(p.time || '') + '</span><br>'
+       + esc(p.content || '').replace(/\n/g, '<br>')
+       + (p.quote ? '<br><span class="t">⊳ ' + esc(p.quote) + '</span>' : '') + '</div>';
+  });
+  h += '</div>';
+
+  document.getElementById('content').innerHTML = h;
+}
+function esc(s) {
+  return (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+</script>
+</body>
+</html>

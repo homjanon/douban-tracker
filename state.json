@@ -1,0 +1,13 @@
+{
+  "updated_at": "",
+  "last_cursor": "",
+  "nickname_map": {
+    "小惠": "惠发食品",
+    "老莫": "万家品质生活混合A(519195)"
+  },
+  "positions": {
+    "positions": [
+      {"name": "招商银行", "code": "600036", "action": "持有", "first_seen": ""}
+    ]
+  }
+}
