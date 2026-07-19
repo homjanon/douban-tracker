@@ -1,6 +1,6 @@
 # 豆瓣楼主发言追踪（douban-tracker）
 
-基于 **GitHub Actions + Pages** 的豆瓣小组楼主发言自动追踪工具。每个工作日北京时间 18:00（UTC 10:00）自动运行，抓取楼主发言 → LLM 研判 → 生成结构化每日简报 → 推送至仓库并发布 Pages 看板。
+基于 **GitHub Actions + Pages** 的豆瓣小组楼主发言自动追踪工具。**每日北京时间 16:30（含周末）** 自动运行（GitHub Pages 手动触发按钮亦可即时运行），抓取楼主发言 → LLM 研判 → 生成结构化每日简报 → 推送至仓库并发布 Pages 看板。
 
 > 借鉴 [`homjanon/xueqiu-tracker`](https://github.com/homjanon/xueqiu-tracker) 的 state 增量游标 / latest.json 双结构 / 四级 LLM 后端链，并补回其已删除的【持仓入表】+【昵称映射】能力。
 
@@ -10,21 +10,30 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 
 | # | 板块 | 数据来源 | 渲染方式 |
 |---|------|---------|---------|
-| ① | 📊 持仓追踪 | `state.json` 的 `positions`（19 项权威持仓） | 7 列 Markdown 表格 |
+| ① | 📊 持仓追踪 | `state.json` 的 `positions`（19 项权威持仓） | 5 列 Markdown/HTML 表格（标的/状态/类型/现价/提及） |
 | ② | 🌅 今日总览 | LLM 单次调用产出 6 子板块 | 市场背景/核心观点/今日操作/持仓动态/看好方向/风险提示 |
 | ③ | 📊 本次结果 | 运行时统计 | 今日发言数 + 累计存档数 |
 | ④ | 📝 今日发言聚合 | 当日发言按标的聚类（>50 条聚合，否则逐条） | 子板块 + 占比 |
 | ⑤ | 🧠 投资风格分析 | `investor_profile.json`（7 维度 + 综合评估） | 表格 + 段落 |
-| ⑥ | 🏷️ 昵称映射表 | `nickname_rules.json`（规律）+ `state.json`（映射） | 规律说明 + 映射表 |
+| ⑥ | 🏷️ 昵称映射表 | `nickname_rules.json`（规律）+ `state.json`（映射） | 规律三列表格 + 映射表 |
 
 ## 关键设计
 
-### 待确认机制（防幻觉污染）
-LLM 的持仓/昵称研判结果**只写入 `latest.json` 的 `pending_positions` / `pending_nicknames`（建议区）**，绝不自动写回 `state.json`。需你本地编辑 `state.json` 并 push 后才会生效。这避免了早期"小华=万家""华夏兄弟=华夏基金旗下"这类幻觉污染状态文件。
+### 持仓追踪全自动回写（带严格阀门）
+`apply_position_updates` 复用「今日操作」板块，按 emoji 自动维护 `state.json` 的持仓：
+- ✅ 买入/加仓 → 新增或更新；⏭️ 持有 → 仅更新动态；❌ 卖出 → 第一天标"卖出"保留痕迹、次日确认后移出
+- **阀门**：仅当标的命中已知持仓/昵称或符合代码格式才允许新增（拒绝"观察策略"等策略词）；单次新增 > 5 条触发**熔断**不回写
+- **成本价**：仅当发言中明确提及价格且持仓原值为"暂无"时才写入，不编造、不覆盖已有值
+- **字段提纯**：每次运行对 `cost_price` / `last_note` 自动归一（成本 → `约xx元`/`约xx-x元`/`约x万元`；分析腔动态清空、超长截断），保证提及列格式统一
+
+> 仅"无法确认的新持仓/新昵称"才进 `latest.json` 的 `pending_positions` / `pending_nicknames`（建议区）待你人工确认；其余已确认维度均全自动增量更新，无需手动维护。
+
+### 投资风格画像全自动增量更新
+`update_investor_profile` 复用「今日总览」内容，对 `investor_profile.json` 做增量修订：仅当有今日发言依据时才改对应维度（附 evidence），无变化的维度不返回；单次修订 > 5 维度触发熔断不回写。
 
 ### LLM 四级后端链（agnes 主力 + 雪球三级备用）
 按序尝试，首个有 key 且成功即生效：
-1. **Agnes AI** `agnes-2.0-flash`（免费多模态，主力）
+1. **Agnes AI** `agnes-2.0-flash`（免费，主力）
 2. NVIDIA `qwen3.5-122b-a10b`（免费备用 1）
 3. NVIDIA `kimi-k2.5`（免费备用 2）
 4. 硅基流动 `Qwen3.5-35B-A3B`（付费兜底）
@@ -36,17 +45,17 @@ LLM 的持仓/昵称研判结果**只写入 `latest.json` 的 `pending_positions
 
 ```
 douban-tracker/
-├── .github/workflows/track.yml   # Actions：cron 每日运行 + commit/push
+├── .github/workflows/track.yml   # Actions：cron 16:30 + 手动触发 + commit/push
 ├── config.py                     # 四端 LLM 后端 + USER_HINTS（确定映射）
-├── scraper.py                    # 豆瓣 HTTP+cookie 抓取（无 Playwright/WAF）
-├── analyzer.py                   # LLM 研判：归纳 / 持仓昵称 / 今日总览
-├── tracker.py                    # 主流程：抓→研判→6 板块渲染→写 latest.json/reports
-├── query_stock.py                # 股价多源查询（腾讯/新浪/akshare/天天基金/东方财富）
-├── nickname_rules.py/.json       # 昵称命名规律（判新昵称用）
-├── investor_profile.json         # 楼主投资风格画像（7 维度）
-├── state.json                    # 增量游标 + nickname_map(47) + positions(19)
+├── scraper.py                    # 豆瓣 HTTP+cookie 抓取（无 Playwright/WAF），当日全量
+├── analyzer.py                   # LLM 研判：归纳 / 持仓昵称 / 今日总览（6 子板块）
+├── tracker.py                    # 主流程：抓→研判→持仓回写/提纯→6 板块渲染→写 latest.json/reports
+├── query_stock.py                # 股价多源查询（腾讯/天天基金为主，复用查询现价）
+├── nickname_rules.py/.json       # 昵称命名规律（5 类，判新昵称用）
+├── investor_profile.json         # 楼主投资风格画像（7 维度，自动增量更新）
+├── state.json                    # nickname_map + positions(19) + _seen_ids(去重累计)
 ├── data/latest.json              # 每日产物（Pages 读取）
-├── docs/index.html               # Pages 看板（6 板块卡片）
+├── docs/index.html               # Pages 看板（6 板块卡片，持仓 5 列 + 涨跌色）
 └── reports/YYYY-MM-DD.md         # 每日简报
 ```
 
@@ -71,6 +80,8 @@ python tracker.py
 ```
 
 ## 注意
-- `state.json` 的 `nickname_map` / `positions` 为**权威数据源**，修改需你人工确认后提交，Actions 不会自动覆盖。
+- **抓取范围**：`scrape_user()` 严格只保留 `date == 今日` 的发言（从 0 点起当日全量），不跨日累积；`total_archived` 累计数基于发言 `id` 跨运行去重，仅计首次见到的。
+- `state.json` 的 `positions` 由 Actions **全自动维护**（买入/卖出/成本价/字段提纯），`nickname_map` 为权威映射；无法确认的新增项进 `pending` 建议区待你人工确认后提交才生效。
 - `investor_profile.json` / `nickname_rules.json` 可直接编辑，无需改代码。
 - 时区：所有时间均为北京时间（UTC+8）。
+- Pages 看板右上角「🔄 手动触发更新」按钮跳转 Actions 页，点 Run workflow 即可即时运行（零密钥、安全）。
