@@ -60,12 +60,15 @@ function render(d) {
   let h = '';
   if (d.showing_fallback) h += '<div class="fallback">⚠️ 本次无新增发言，以下为近期发言兜底展示。</div>';
 
-  // ① 持仓追踪
+  // ① 持仓追踪（5列：标的/状态/类型/现价/提及）
   if (d.positions && d.positions.positions) {
     h += '<h2>📊 持仓追踪</h2><div class="card">' + table([
-      ['标的','状态','类型','成本价','市值','备注','提及'],
-      ...d.positions.positions.map(p => [p.name, p.action, p.category,
-        p.cost_price||'暂无', p.market_value||'暂无', (p.note||'').slice(0,50), p.first_seen])
+      ['标的','状态','类型','现价','提及'],
+      ...d.positions.positions.map(p => [
+        p.name, p.action, p.category,
+        priceCell(p.current_price||'暂无'),
+        mentionCell(p.first_seen, p.last_note, p.cost_price)
+      ])
     ]) + '</div>';
   }
 
@@ -137,6 +140,33 @@ function table(rows) {
   let t = '<table><thead><tr>' + rows[0].map(c => '<th>'+esc(c)+'</th>').join('') + '</tr></thead><tbody>';
   rows.slice(1).forEach(r => t += '<tr>' + r.map(c => '<td>'+esc(c)+'</td>').join('') + '</tr>');
   return t + '</tbody></table>';
+}
+
+// 现价单元格：提取涨跌幅上色（红涨绿跌）
+function priceCell(s) {
+  if (!s || s === '暂无') return '<td>暂无</td>';
+  const m = s.match(/（([+\-]?[\d.]+)%）/);
+  let cls = '';
+  if (m) cls = m[1].startsWith('-') ? 'neg' : 'pos';
+  return `<td class="${cls}">${esc(s)}</td>`;
+}
+
+// 提及单元格：日期 MM-DD→M.D + 当日动态 + 约xx成本
+function mentionCell(first_seen, last_note, cost_price) {
+  let date = '';
+  if (first_seen) {
+    const m = String(first_seen).match(/(\d{1,2})-(\d{1,2})/);
+    date = m ? `${parseInt(m[1])}.${parseInt(m[2])}` : first_seen;
+  }
+  const parts = [];
+  if (date) parts.push(date);
+  if (last_note) parts.push(last_note);
+  if (cost_price) {
+    let cm = cost_price.match(/约([\d万.]+元?万?元?)/);
+    if (!cm) cm = cost_price.match(/(\d+-\d+元)/);
+    if (cm) parts.push('成本约' + cm[1]);
+  }
+  return '<td>' + esc(parts.join('；') || '暂无') + '</td>';
 }
 
 // 判断文本是否含 Markdown 表格（有表头行 + 分隔行 |---|）

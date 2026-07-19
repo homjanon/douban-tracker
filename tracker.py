@@ -8,6 +8,7 @@
 import datetime
 import json
 import os
+import re
 
 from config import (DATA_DIR, REPORT_DIR, STATE_FILE, RECENT_N,
                     AGGREGATE_THRESHOLD, USER_HINTS)
@@ -48,6 +49,38 @@ def load_state():
 def save_state(st):
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(st, f, ensure_ascii=False, indent=2)
+
+
+# ============ 实时查价（复用 query_stock：腾讯主/天天基金主）============
+def enrich_prices(positions):
+    """对每条有 code 的持仓查最新价，写入 p['current_price']（含涨跌幅）。
+    查不到静默降级为 '暂无'；失败不影响主流程。
+    """
+    pos_list = positions.get("positions", [])
+    if not pos_list:
+        return
+    # 批量：股票类一次性拼腾讯，基金类逐只走天天基金（query_stock 已按 code 自动路由）
+    results = {}
+    for p in pos_list:
+        code = p.get("code", "")
+        if not code:
+            continue
+        try:
+            q = query_stock(code)
+        except Exception as e:
+            print(f"[查价] {p.get('name','?')}({code}) 异常: {e}")
+            q = None
+        if q and q.get("price"):
+            chg = q.get("change", "")
+            txt = q["price"]
+            if chg:
+                txt += f"（{chg}%）"
+            results[p["name"]] = txt
+            print(f"[查价] {p.get('name','?')}({code}) → {txt} 源={q.get('source','')}")
+        else:
+            results[p["name"]] = "暂无"
+    for p in pos_list:
+        p["current_price"] = results.get(p["name"], "暂无")
 
 
 # ============ 持仓追踪动态更新（复用今日操作板块 + 严格阀门）============
@@ -212,16 +245,54 @@ def aggregate_posts(posts, nickname_map, positions):
 
 
 # ============ 报告渲染（IMA 同构 6 板块）============
+def _fmt_mention_date(d):
+    """提及日期 MM-DD → M.D（如 07-03 → 7.3，07-19 → 7.19）。"""
+    if not d:
+        return ""
+    d = str(d).strip()
+    m = re.match(r'(\d{1,2})-(\d{1,2})', d)
+    if m:
+        return f"{int(m.group(1))}.{int(m.group(2))}"
+    return d
+
+
+def _cost_hint(cost_price):
+    """从成本价字段提取『约xx』精简表述，用于提及栏。无有效成本返回空。"""
+    if not cost_price:
+        return ""
+    s = str(cost_price)
+    # 提取「约xx元」「xx万元」「xx-xx元」中的约数
+    m = re.search(r'约([\d万.]+元?万?元?)', s)
+    if m:
+        return f"约{m.group(1)}"
+    m2 = re.search(r'(\d+-\d+元)', s)
+    if m2:
+        return f"约{m2.group(1)}"
+    return ""
+
+
 def _positions_table(positions):
-    """精简持仓表：备注改为『当日动态』，仅保留当天内容；不重复昵称（昵称见映射表板块）。"""
-    L = ["| 标的 | 状态 | 类型 | 成本价 | 市值 | 当日动态 | 提及日期 |",
-         "|------|------|------|--------|------|----------|----------|"]
+    """持仓表 5 列：标的/状态/类型/现价/提及。
+    现价=实时查价(current_price)；提及=日期(M.D)+当日动态+约xx成本价。
+    """
+    L = ["| 标的 | 状态 | 类型 | 现价 | 提及 |",
+         "|------|------|------|------|------|"]
     for p in positions.get("positions", []):
-        mv = p.get("market_value") or "暂无"
-        last = p.get("last_note") or p.get("note", "") or "暂无"
+        price = p.get("current_price") or "暂无"
+        date = _fmt_mention_date(p.get("first_seen", ""))
+        last = p.get("last_note") or ""
+        cost = _cost_hint(p.get("cost_price"))
+        # 提及栏：日期 + 当日动态 + 成本价提示
+        parts = []
+        if date:
+            parts.append(date)
+        if last:
+            parts.append(last)
+        if cost:
+            parts.append(f"成本{cost}")
+        mention = "；".join(parts) if parts else "暂无"
         L.append(f"| {p.get('name','')} | {p.get('action','')} | {p.get('category','')} | "
-                 f"{p.get('cost_price','暂无')} | {mv} | "
-                 f"{last[:50]} | {p.get('first_seen','')} |")
+                 f"{price} | {mention[:60]} |")
     return "\n".join(L)
 
 
@@ -406,6 +477,9 @@ def main():
 
     # 6. 累计存档数更新
     st["total_archived"] = st.get("total_archived", 0) + len(new)
+
+    # 6.5 实时查价注入持仓（腾讯/天天基金，复用 query_stock）
+    enrich_prices(st["positions"])
 
     # 7. 写 latest.json（6 板块结构；持仓/画像已自动增量更新并透明记录）
     now = datetime.datetime.now(CST)
