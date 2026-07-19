@@ -79,6 +79,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data reports state.json investor_profile.json
+          git add data reports state.json investor_profile.json image_ocr.py
           git diff --cached --quiet || git commit -m "chore: 每日追踪更新 $(date +%F)"
           git push

@@ -53,13 +53,21 @@ RULES = [
 
 
 def load_nickname_rules():
-    """返回规律文本（优先读 nickname_rules.json，缺失则用内置 RULES）。"""
+    """返回规律列表（结构化，每项含 type/rule/examples）。优先读 nickname_rules.json。
+    供表格渲染与 LLM 提示复用同一份数据。"""
     try:
         with open(_RULES_FILE, encoding="utf-8") as f:
             data = json.load(f)
         rules = data.get("rules", RULES)
     except Exception:
         rules = RULES
+    return rules or []
+
+
+def rules_to_text(rules=None):
+    """把规律列表渲染为纯文本（注入 LLM 提示用，保持向后兼容）。"""
+    if rules is None:
+        rules = load_nickname_rules()
     if not rules:
         return ""
     lines = ["【昵称命名规律（用于推断未知新昵称）】"]
@@ -69,4 +77,5 @@ def load_nickname_rules():
 
 
 if __name__ == "__main__":
-    print(load_nickname_rules())
+    import json as _j
+    print(_j.dumps(load_nickname_rules(), ensure_ascii=False, indent=2))

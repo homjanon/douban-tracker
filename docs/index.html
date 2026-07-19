@@ -20,6 +20,8 @@
   table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
   th, td { border: 1px solid #eee; padding: 6px 8px; text-align: left; vertical-align: top; }
   th { background: #f6ffed; }
+  td.pos { color: #e03131; font-weight: 600; }   /* 涨：红 */
+  td.neg { color: #2f9e44; font-weight: 600; }   /* 跌：绿 */
   pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.6;
         background: #fafafa; padding: 10px; border-radius: 4px; }
   .post { border-top: 1px solid #eee; padding: 10px 0; line-height: 1.5; }
@@ -65,9 +67,11 @@ function render(d) {
     h += '<h2>📊 持仓追踪</h2><div class="card">' + table([
       ['标的','状态','类型','现价','提及'],
       ...d.positions.positions.map(p => [
-        p.name, p.action, p.category,
-        priceCell(p.current_price||'暂无'),
-        mentionCell(p.first_seen, p.last_note, p.cost_price)
+        {text: p.name},
+        {text: p.action},
+        {text: p.category},
+        priceCell(p.current_price||'暂无'),           // {text, cls} 对象 → 特殊列（涨跌上色）
+        {text: mentionCell(p.first_seen, p.last_note, p.cost_price)}
       ])
     ]) + '</div>';
   }
@@ -85,6 +89,18 @@ function render(d) {
         // 含 Markdown 表格则渲染成 <table>，否则原样 <pre>
         h += isMdTable(ov[k]) ? mdTable(ov[k]) : '<pre>'+esc(ov[k])+'</pre>';
       }
+    });
+    h += '</div>';
+  }
+
+  // ③ 图片识别（前3张，失败则为空）
+  const imgs = d.image_analysis || [];
+  if (imgs.length) {
+    h += '<h2>🖼️ 图片识别</h2><div class="card">';
+    imgs.forEach(x => {
+      h += '<div class="post">';
+      if (x.url) h += '<a href="'+esc(x.url)+'" target="_blank" rel="noopener">🔗 原图</a><br>';
+      h += esc(x.desc || '（识别失败，已跳过）') + '</div>';
     });
     h += '</div>';
   }
@@ -107,7 +123,20 @@ function render(d) {
 
   // ⑥ 昵称映射表（规律 + 映射）
   h += '<h2>🏷️ 昵称映射表</h2><div class="card">';
-  if (d.nickname_rules) h += '<h3>📖 昵称规律（供 AI 判断新昵称时参考）</h3><pre>' + esc(d.nickname_rules) + '</pre>';
+  // 昵称规律：结构化列表 → 三列表格（类型/规则/示例）；兼容旧版纯文本 → <pre>
+  if (d.nickname_rules && d.nickname_rules.length) {
+    h += '<h3>📖 昵称规律（供 AI 判断新昵称时参考）</h3>';
+    if (typeof d.nickname_rules[0] === 'object') {
+      h += table([
+        ['规律类型','匹配规则','示例'],
+        ...d.nickname_rules.map(r => [
+          {text: r.type || ''}, {text: r.rule || ''}, {text: r.examples || ''}
+        ])
+      ]);
+    } else {
+      h += '<pre>' + esc(d.nickname_rules) + '</pre>';
+    }
+  }
   if (d.nickname_map) {
     h += '<h3>📋 已收录映射</h3>' + table([['昵称','对应名称'],
       ...Object.entries(d.nickname_map)]);
@@ -136,22 +165,33 @@ function render(d) {
   document.getElementById('content').innerHTML = h;
 }
 
+// 单元格支持两种形态：
+//   字符串 / {text:...}        → 普通转义单元格
+//   {text:..., cls:...}        → 按 cls 上色、内容仍转义
 function table(rows) {
   let t = '<table><thead><tr>' + rows[0].map(c => '<th>'+esc(c)+'</th>').join('') + '</tr></thead><tbody>';
-  rows.slice(1).forEach(r => t += '<tr>' + r.map(c => '<td>'+esc(c)+'</td>').join('') + '</tr>');
+  rows.slice(1).forEach(r => {
+    const cells = r.map(c => {
+      const isObj = c && typeof c === 'object';
+      const txt = isObj ? (c.text ?? '') : c;
+      const cls = isObj && c.cls ? ` class="${c.cls}"` : '';
+      return `<td${cls}>${esc(txt)}</td>`;
+    });
+    t += '<tr>' + cells.join('') + '</tr>';
+  });
   return t + '</tbody></table>';
 }
 
-// 现价单元格：提取涨跌幅上色（红涨绿跌）
+// 现价单元格：提取涨跌幅上色（红涨绿跌），返回 {text, cls} 对象供 table 特殊渲染
 function priceCell(s) {
-  if (!s || s === '暂无') return '<td>暂无</td>';
+  if (!s || s === '暂无') return {text: '暂无'};
   const m = s.match(/（([+\-]?[\d.]+)%）/);
   let cls = '';
   if (m) cls = m[1].startsWith('-') ? 'neg' : 'pos';
-  return `<td class="${cls}">${esc(s)}</td>`;
+  return {text: s, cls};
 }
 
-// 提及单元格：日期 MM-DD→M.D + 当日动态 + 约xx成本
+// 提及单元格：日期 MM-DD→M.D + 当日动态 + 约xx成本，返回纯文本
 function mentionCell(first_seen, last_note, cost_price) {
   let date = '';
   if (first_seen) {
@@ -166,7 +206,7 @@ function mentionCell(first_seen, last_note, cost_price) {
     if (!cm) cm = cost_price.match(/(\d+-\d+元)/);
     if (cm) parts.push('成本约' + cm[1]);
   }
-  return '<td>' + esc(parts.join('；') || '暂无') + '</td>';
+  return parts.join('；') || '暂无';
 }
 
 // 判断文本是否含 Markdown 表格（有表头行 + 分隔行 |---|）

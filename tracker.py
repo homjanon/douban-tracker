@@ -16,8 +16,9 @@ from scraper import scrape_user
 from analyzer import (daily_summary, analyze_positions_and_nicknames,
                       build_daily_overview, load_investor_profile,
                       update_investor_profile)
-from nickname_rules import load_nickname_rules
+from nickname_rules import load_nickname_rules, rules_to_text
 from query_stock import query_stock
+from image_ocr import recognize_images
 
 CST = datetime.timezone(datetime.timedelta(hours=8))
 
@@ -149,6 +150,70 @@ def _is_valid_stock_target(target, nickname_map):
     return False
 
 
+# ============ 成本价明确提及自动填充（严格阀门：仅填明确提及）============
+_COST_PATTERNS = [
+    # 成本/建仓价/本/买入价 + 数字 + 元（或万元）
+    re.compile(r'(?:成本|建仓[价价]|买入价|我的本|本钱|我的成本|持仓成本)[约在是]?\s*[:：]?\s*'
+               r'(\d+(?:\.\d+)?)\s*(万元|万|元)?', re.IGNORECASE),
+    re.compile(r'(?:成本|本|建仓)\s*(\d+(?:\.\d+)?)\s*(万元|万|元)?', re.IGNORECASE),
+    re.compile(r'(\d+(?:\.\d+)?)\s*(万元|万|元)\s*(?:的成本|的本|建仓|买入)'),
+]
+
+
+def parse_cost_mentions(overview):
+    """从今日操作/持仓动态表格的『详情/关键动态』列抽取「明确成本价表述」。
+    返回 [(target_text, cost_str)]，仅围栏明确提及价格的行（阀门：无数字价格不要）。
+    """
+    found = []
+    raw = (overview or {})
+    for key in ("today_actions", "position_dynamics"):
+        blob = raw.get(key, "") or ""
+        if not blob:
+            continue
+        for line in blob.splitlines():
+            line = line.strip()
+            if not line.startswith("|") or "---" in line or line.startswith("| 操作") \
+               or line.startswith("| 标的"):
+                continue
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if len(cells) < 2:
+                continue
+            # 操作表：列=[操作, 标的, 详情]；持仓动态表：列=[标的, 今日表现, 关键动态]
+            target = cells[1] if key == "today_actions" else cells[0]
+            detail = cells[-1]  # 详情 / 关键动态 列
+            for pat in _COST_PATTERNS:
+                m = pat.search(detail)
+                if m:
+                    num = m.group(1)
+                    unit = m.group(2) or "元"
+                    found.append((target, f"约{num}{unit}"))
+                    break
+    return found
+
+
+def _apply_cost_mentions(st, overview, today):
+    """把明确提及的成本价写入对应持仓 cost_price（仅当命中已有持仓标的）。
+    返回 [(变更描述)] 供审计。不编造、未命中不填。
+    """
+    nickname_map = st.get("nickname_map", {})
+    changes = []
+    for target, cost in parse_cost_mentions(overview):
+        idx = _match_position(st["positions"], target, nickname_map)
+        if idx is None:
+            continue  # 阀门：未命中任何已知持仓/昵称，拒绝填写（避免误填）
+        p = st["positions"]["positions"][idx]
+        # 仅当原 cost_price 为空/"暂无" 或 本次更明确时覆盖；已有人工/历史值保留
+        old = p.get("cost_price", "") or ""
+        if old and "暂无" not in old:
+            changes.append(f"⏭️ 成本价已存在跳过：{p['name']}（{old}）")
+            continue
+        p["cost_price"] = f"约{cost[1:]}"  # cost 形如 '约xx元'，统一存 '约xx元'
+        if cost.endswith("万元"):
+            p["cost_price"] = cost
+        changes.append(f"💰 填充成本价：{p['name']} → {p['cost_price']}（依据：{target}）")
+    return changes, bool(changes)
+
+
 def apply_position_updates(st, overview, today):
     """依据今日操作表更新 state.positions。返回 [(变更描述)] 供审计。
     阀门：
@@ -200,6 +265,11 @@ def apply_position_updates(st, overview, today):
                 if pos_list[idx].get("action") == "卖出":
                     pos_list[idx]["action"] = "持有"
                     changes.append(f"♻️ 恢复持有（卖出信号撤销）：{pos_list[idx]['name']}")
+
+    # 成本价明确提及自动填充（仅绑定已命中持仓标的、仅当原值缺失）
+    cost_changes, _ = _apply_cost_mentions(st, overview, today)
+    for c in cost_changes:
+        changes.append(c)
 
     # 阈值熔断
     if new_count > 5:
@@ -375,7 +445,7 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
 
     # ⑥ 昵称映射表（规律 + 映射）
     L.append("## 🏷️ 昵称映射表")
-    rules = load_nickname_rules()
+    rules = rules_to_text()
     if rules:
         L.append("### 📖 昵称规律（供 AI 判断新昵称时参考）")
         L.append(rules)
@@ -446,12 +516,20 @@ def main():
     showing_fallback = (len(new) == 0) and bool(posts)
     display = new if new else posts[:RECENT_N]
 
-    # 3. 研判
+    # 3. 图片识别（前 3 张，失败兜底跳过，不影响主流程）
+    image_analysis = recognize_images(display, "")
+    image_context = "\n".join(f"- {x['desc']}" for x in image_analysis if x.get("desc")) or ""
+    if image_analysis:
+        print(f"[识图] 识别完成 {len(image_analysis)} 张，有效描述 {sum(1 for x in image_analysis if x.get('desc'))} 条")
+    else:
+        print("[识图] 无图片或识别跳过")
+
+    # 4. 研判（图片识别文字作为上下文注入）
     name = os.getenv("DOUBAN_TARGET_USER", "楼主")
     summary = daily_summary({"name": name, "posts": display})
     print(f"[归纳] {summary}")
-    analysis = analyze_positions_and_nicknames(display, st["nickname_map"], st["positions"])
-    overview = build_daily_overview(display, st["nickname_map"], st["positions"])
+    analysis = analyze_positions_and_nicknames(display, st["nickname_map"], st["positions"], image_context)
+    overview = build_daily_overview(display, st["nickname_map"], st["positions"], image_context)
     # 查价：对研判出的标的补实时价格
     for p in analysis["new_positions"]:
         if p.get("code"):
@@ -494,8 +572,9 @@ def main():
         "overview": overview,                       # 今日总览 6 子板块
         "positions": st["positions"],              # 持仓追踪（已动态更新）
         "investor_profile": load_investor_profile(),  # 投资风格分析（已增量更新）
-        "nickname_rules": load_nickname_rules(),      # 昵称规律
+        "nickname_rules": load_nickname_rules(),      # 昵称规律（结构化列表）
         "nickname_map": st["nickname_map"],           # 已收录映射
+        "image_analysis": image_analysis,            # 图片识别结果（前3张，失败为空）
         "pending_positions": analysis["new_positions"],    # 待确认（LLM 研判辅助参考）
         "pending_nicknames": analysis["new_nicknames"],    # 待确认
         "applied_position_changes": [] if pos_blocked else pos_changes,  # 本次自动持仓变更（审计）

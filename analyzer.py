@@ -16,7 +16,7 @@ import re
 import requests
 
 from config import BACKENDS, TIMEOUT, USER_HINTS, USER_HINTS as _HINTS
-from nickname_rules import load_nickname_rules
+from nickname_rules import load_nickname_rules, rules_to_text
 
 # 投资风格画像（楼主历史发言提炼，作研判上下文，避免误判其操作意图）
 _PROFILE_FILE = os.getenv("PROFILE_FILE", "investor_profile.json")
@@ -130,21 +130,24 @@ def daily_summary(user_info):
 
 
 # ============ 持仓 / 昵称研判（补回雪球已删的逻辑）============
-def analyze_positions_and_nicknames(posts, nickname_map, positions):
+def analyze_positions_and_nicknames(posts, nickname_map, positions, image_context=""):
     """扫描今日发言，研判持仓变动 + 新昵称映射。
 
     遵循宽松原则（源自 douban_speaker_bot.py 提示词规则）：
       - 持仓：有买入/持有迹象（明说买了、加仓、有底仓、不舍得卖、多次提及+关注）即可入表；
         纯分析/看戏不入表。拿不准时宁可信其有。
       - 昵称：推断合理（70%+ 把握）即写入；完全无法推断则跳过。
+    image_context：图片识别文字（可选），拼接进研判上下文。
     返回 {new_positions: [...], new_nicknames: {nick: target}, mentions: {stock: count}}
     """
     if not posts:
         return {"new_positions": [], "new_nicknames": {}, "mentions": {}}
     hint = USER_HINTS.get("default", "")
-    rules = load_nickname_rules()
+    rules = rules_to_text()
     profile = load_investor_profile()
     text_blob = "\n".join(f"- {p.get('content', '')}" for p in posts[:40])
+    if image_context:
+        text_blob += "\n\n【图片识别内容（来自楼主当日图片）】\n" + image_context
     nick_lines = "\n".join(f"  {k} = {v}" for k, v in nickname_map.items()) or "（空）"
     pos_lines = "\n".join(f"  {p.get('name','?')}" for p in positions.get("positions", [])) or "（空）"
 
@@ -188,21 +191,24 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions):
 
 
 # ============ 今日总览（单次 LLM 调用产出 6 子板块）============
-def build_daily_overview(posts, nickname_map, positions):
+def build_daily_overview(posts, nickname_map, positions, image_context=""):
     """从当日发言一次性提取「今日总览」6 子板块，避免多次调用浪费 token。
 
     返回 dict：
       market_background / core_views / today_actions / position_dynamics /
       favored_sectors / risk_warnings
+    image_context：图片识别文字（可选），拼接进研判上下文。
     无发言或调用失败则返回各字段空字符串。
     """
     if not posts:
         return {k: "" for k in ("market_background", "core_views", "today_actions",
                                 "position_dynamics", "favored_sectors", "risk_warnings")}
     hint = USER_HINTS.get("default", "")
-    rules = load_nickname_rules()
+    rules = rules_to_text()
     profile = load_investor_profile()
     text_blob = "\n".join(f"- {p.get('content', '')}" for p in posts[:40])
+    if image_context:
+        text_blob += "\n\n【图片识别内容（来自楼主当日图片）】\n" + image_context
     nick_lines = "\n".join(f"  {k} = {v}" for k, v in nickname_map.items()) or "（空）"
     pos_lines = "\n".join(f"  {p.get('name','?')}" for p in positions.get("positions", [])) or "（空）"
 
