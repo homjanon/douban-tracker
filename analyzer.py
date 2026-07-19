@@ -16,6 +16,7 @@ import re
 import requests
 
 from config import BACKENDS, TIMEOUT, USER_HINTS, USER_HINTS as _HINTS
+from nickname_rules import load_nickname_rules
 
 # 投资风格画像（楼主历史发言提炼，作研判上下文，避免误判其操作意图）
 _PROFILE_FILE = os.getenv("PROFILE_FILE", "investor_profile.json")
@@ -133,6 +134,7 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions):
     if not posts:
         return {"new_positions": [], "new_nicknames": {}, "mentions": {}}
     hint = USER_HINTS.get("default", "")
+    rules = load_nickname_rules()
     profile = load_investor_profile()
     text_blob = "\n".join(f"- {p.get('content', '')}" for p in posts[:40])
     nick_lines = "\n".join(f"  {k} = {v}" for k, v in nickname_map.items()) or "（空）"
@@ -142,9 +144,11 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions):
               "你有实时查价能力，判断比死规则更准。遵循宽松原则："
               "① 持仓——有买入/持有迹象（明说买了、加仓、有底仓、不舍得卖、多次提及且表达关注）即可入表；"
               "纯分析/看戏（如『这股不错』『可以关注』）不入表；拿不准宁可信其有。"
-              "② 昵称——推断合理（70%+把握）即映射；无法推断跳过。"
+              "② 昵称——先按下方【命名规律】推断，再用【已确认映射】校验；两侧冲突以映射为准；"
+              "合理（70%+把握）即映射，无法推断跳过。"
               "发现错误用户会后续指正，无需过度谨慎。"
-              + ("\n\n黑话/昵称提示：\n" + hint if hint else "")
+              + ("\n\n黑话/昵称提示（已确认映射，权威）：\n" + hint if hint else "")
+              + ("\n\n" + rules if rules else "")
               + ("\n\n楼主投资风格画像（判断其操作意图时务必参考，避免误判）：\n" + profile if profile else ""))
     user = (f"现有昵称映射：\n{nick_lines}\n\n现有持仓：\n{pos_lines}\n\n"
             f"今日发言：\n{text_blob}\n\n"
@@ -172,3 +176,57 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions):
         "new_nicknames": data.get("new_nicknames", {}) or {},
         "mentions": data.get("mentions", {}) or {},
     }
+
+
+# ============ 今日总览（单次 LLM 调用产出 6 子板块）============
+def build_daily_overview(posts, nickname_map, positions):
+    """从当日发言一次性提取「今日总览」6 子板块，避免多次调用浪费 token。
+
+    返回 dict：
+      market_background / core_views / today_actions / position_dynamics /
+      favored_sectors / risk_warnings
+    无发言或调用失败则返回各字段空字符串。
+    """
+    if not posts:
+        return {k: "" for k in ("market_background", "core_views", "today_actions",
+                                "position_dynamics", "favored_sectors", "risk_warnings")}
+    hint = USER_HINTS.get("default", "")
+    rules = load_nickname_rules()
+    profile = load_investor_profile()
+    text_blob = "\n".join(f"- {p.get('content', '')}" for p in posts[:40])
+    nick_lines = "\n".join(f"  {k} = {v}" for k, v in nickname_map.items()) or "（空）"
+    pos_lines = "\n".join(f"  {p.get('name','?')}" for p in positions.get("positions", [])) or "（空）"
+
+    system = ("你是财经编辑+实战分析师，依据楼主当日发言，产出结构化的「今日总览」。"
+              "务必使用下方昵称映射与规律正确解码黑话；结合楼主投资风格画像理解其操作意图。"
+              "各字段独立成文、事实导向、不编造；行情数字无依据则留空。"
+              + ("\n\n黑话/昵称提示（已确认映射，权威）：\n" + hint if hint else "")
+              + ("\n\n" + rules if rules else "")
+              + ("\n\n楼主投资风格画像：\n" + profile if profile else ""))
+    user = (f"现有持仓：\n{pos_lines}\n\n现有昵称映射：\n{nick_lines}\n\n"
+            f"今日发言：\n{text_blob}\n\n"
+            f"请输出 JSON（6 个字段，均为字符串，可含 Markdown 列表/表格）：\n"
+            f'{{'
+            f'"market_background": "市场背景（宏观/指数/情绪一段概述）",'
+            f'"core_views": "楼主核心观点（无序列表 - **关键词**——阐述）",'
+            f'"today_actions": "今日操作（Markdown 表格：| 操作 | 标的 | 详情 |，操作列用 ✅/⏭️/❌ 标注）",'
+            f'"position_dynamics": "持仓动态（Markdown 表格：| 标的 | 今日表现 | 关键动态 |，表现含涨跌%）",'
+            f'"favored_sectors": "看好板块/方向（无序列表 - **板块**：理由）",'
+            f'"risk_warnings": "风险提示（无序列表 - 「原文」——解读）"'
+            f'}}\n'
+            f"只输出 JSON，不要解释。无内容字段给空字符串。")
+
+    out = call_multi([{"role": "system", "content": system},
+                      {"role": "user", "content": user}])
+    if not out:
+        return {k: "" for k in ("market_background", "core_views", "today_actions",
+                                "position_dynamics", "favored_sectors", "risk_warnings")}
+    raw = _extract_text(out)
+    try:
+        m = re.search(r'\{.*\}', raw, flags=re.DOTALL)
+        data = json.loads(m.group(0)) if m else {}
+    except Exception:
+        data = {}
+    keys = ("market_background", "core_views", "today_actions",
+            "position_dynamics", "favored_sectors", "risk_warnings")
+    return {k: (data.get(k, "") or "").strip() for k in keys}

@@ -3,20 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>豆瓣楼主发言追踪</title>
+<title>豆瓣楼主每日发言推送</title>
 <style>
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-         max-width: 860px; margin: 0 auto; padding: 24px; background: #fafafa; color: #222; }
+         max-width: 880px; margin: 0 auto; padding: 24px; background: #fafafa; color: #222; }
   h1 { font-size: 22px; border-bottom: 2px solid #07c160; padding-bottom: 8px; }
-  .meta { color: #888; font-size: 13px; margin: 8px 0 20px; }
-  .summary { background: #eafaf0; border-left: 4px solid #07c160; padding: 12px 16px;
-             border-radius: 4px; line-height: 1.6; }
-  .card { background: #fff; border-radius: 8px; padding: 16px; margin: 16px 0;
+  h2 { font-size: 17px; margin: 24px 0 10px; color: #07c160; }
+  h3 { font-size: 15px; margin: 14px 0 6px; color: #333; }
+  .meta { color: #888; font-size: 13px; margin: 8px 0 16px; line-height: 1.6; }
+  .card { background: #fff; border-radius: 8px; padding: 16px; margin: 14px 0;
           box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  .card h2 { font-size: 16px; margin: 0 0 8px; }
   .tag { display: inline-block; background: #07c160; color: #fff; font-size: 12px;
          padding: 1px 8px; border-radius: 10px; margin-left: 6px; }
-  .pos { color: #e4393c; } .neg { color: #07c160; }
+  .warn { background: #fff7e6; border-left: 4px solid #faad14; padding: 8px 12px;
+          border-radius: 4px; font-size: 13px; line-height: 1.6; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  th, td { border: 1px solid #eee; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f6ffed; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.6;
+        background: #fafafa; padding: 10px; border-radius: 4px; }
   .post { border-top: 1px solid #eee; padding: 10px 0; line-height: 1.5; }
   .post .t { color: #999; font-size: 12px; }
   .empty { color: #999; font-style: italic; }
@@ -24,47 +29,49 @@
 </style>
 </head>
 <body>
-<h1>📊 豆瓣楼主发言追踪</h1>
+<h1>📋 楼主每日发言推送</h1>
 <div class="meta" id="meta">加载中…</div>
 <div id="content">读取 data/latest.json 中…</div>
 
 <script>
 fetch('../data/latest.json')
   .then(r => r.json())
-  .then(d => render(d))
+  .then(render)
   .catch(e => document.getElementById('content').innerHTML =
     '<div class="empty">加载失败：' + e + '（请确认 Actions 已运行且 data/latest.json 已生成）</div>');
 
 function render(d) {
-  document.getElementById('meta').textContent =
-    '更新时间：' + (d.fetched_at || '?') + ' ｜ 当日新增：' + (d.today_count ?? 0) + ' 条';
+  const u = d.user || {};
+  document.getElementById('meta').innerHTML =
+    '更新时间：' + (d.fetched_at || '?') + ' ｜ 监控用户：<code>' + esc(u.name || '?') + '</code>'
+    + ' ｜ 当日新增：' + (d.today_count ?? 0) + ' 条 ｜ 累计存档：' + (d.total_archived ?? 0) + ' 条';
 
   let h = '';
   if (d.showing_fallback) h += '<div class="fallback">⚠️ 本次无新增发言，以下为近期发言兜底展示。</div>';
 
-  h += '<div class="summary">' + esc(d.daily_summary || '（无归纳）') + '</div>';
+  // ① 持仓追踪
+  if (d.positions && d.positions.positions) {
+    h += '<h2>📊 持仓追踪</h2><div class="card">' + table([
+      ['标的','状态','类型','成本价','市值','备注','提及'],
+      ...d.positions.positions.map(p => [p.name, p.action, p.category,
+        p.cost_price||'暂无', p.market_value||'暂无', (p.note||'').slice(0,50), p.first_seen])
+    ]) + '</div>';
+  }
 
-  if (d.pending_positions && d.pending_positions.length) {
-    h += '<div class="card"><h2>持仓建议（待确认，未自动写入）</h2>';
-    d.pending_positions.forEach(p => {
-      h += '<div class="post"><b>' + esc(p.name) + '</b>'
-         + (p.code ? ' <span class="tag">' + esc(p.code) + '</span>' : '')
-         + ' ［' + esc(p.action || '?') + '］'
-         + (p.price ? ' 现价 ' + esc(p.price) + ' (' + esc(p.change || '') + ')' : '')
-         + '<br><span class="t">依据：' + esc(p.evidence || '') + '</span></div>';
-    });
+  // ② 今日总览
+  const ov = d.overview || {};
+  if (Object.values(ov).some(v => v)) {
+    h += '<h2>🌅 今日总览</h2><div class="card">';
+    const secs = [['market_background','📌 市场背景'],['core_views','📌 楼主核心观点'],
+                  ['today_actions','📌 今日操作'],['position_dynamics','📌 持仓动态'],
+                  ['favored_sectors','📌 看好板块/方向'],['risk_warnings','📌 风险提示']];
+    secs.forEach(([k, t]) => { if (ov[k]) h += '<h3>'+t+'</h3><pre>'+esc(ov[k])+'</pre>'; });
     h += '</div>';
   }
 
-  if (d.pending_nicknames && Object.keys(d.pending_nicknames).length) {
-    h += '<div class="card"><h2>新昵称映射建议（待确认，未自动写入）</h2>';
-    for (const [k, v] of Object.entries(d.pending_nicknames))
-      h += '<div class="post"><code>' + esc(k) + '</code> = ' + esc(v) + '</div>';
-    h += '</div>';
-  }
-
+  // ④ 发言聚合 / 原始发言
   const posts = d.posts || [];
-  h += '<div class="card"><h2>发言（' + posts.length + ' 条）</h2>';
+  h += '<h2>📝 发言（' + posts.length + ' 条）</h2><div class="card">';
   if (!posts.length) h += '<div class="empty">今日无发言</div>';
   posts.forEach(p => {
     h += '<div class="post"><span class="t">' + esc(p.time || '') + '</span><br>'
@@ -73,10 +80,50 @@ function render(d) {
   });
   h += '</div>';
 
+  // ⑤ 投资风格分析
+  if (d.investor_profile) {
+    h += '<h2>🧠 投资风格分析</h2><div class="card"><pre>' + esc(d.investor_profile) + '</pre></div>';
+  }
+
+  // ⑥ 昵称映射表（规律 + 映射）
+  h += '<h2>🏷️ 昵称映射表</h2><div class="card">';
+  if (d.nickname_rules) h += '<h3>📖 昵称规律（供 AI 判断新昵称时参考）</h3><pre>' + esc(d.nickname_rules) + '</pre>';
+  if (d.nickname_map) {
+    h += '<h3>📋 已收录映射</h3>' + table([['昵称','对应名称'],
+      ...Object.entries(d.nickname_map)]);
+  }
+  h += '</div>';
+
+  // 待确认建议
+  if ((d.pending_positions && d.pending_positions.length) ||
+      (d.pending_nicknames && Object.keys(d.pending_nicknames).length)) {
+    h += '<div class="warn">⚠️ 以下为 LLM <b>建议</b>，未自动写入状态文件。请人工确认后本地编辑 state.json 并 push。</div>';
+    if (d.pending_positions && d.pending_positions.length) {
+      h += '<div class="card"><h3>持仓建议（待确认）</h3>';
+      d.pending_positions.forEach(p => h += '<div class="post"><b>'+esc(p.name)+'</b>'
+        + (p.code ? ' <span class="tag">'+esc(p.code)+'</span>' : '')
+        + ' ［'+esc(p.action||'?')+'］<br><span class="t">依据：'+esc(p.evidence||'')+'</span></div>');
+      h += '</div>';
+    }
+    if (d.pending_nicknames && Object.keys(d.pending_nicknames).length) {
+      h += '<div class="card"><h3>新昵称映射建议（待确认）</h3>';
+      for (const [k, v] of Object.entries(d.pending_nicknames))
+        h += '<div class="post"><code>'+esc(k)+'</code> = '+esc(v)+'</div>';
+      h += '</div>';
+    }
+  }
+
   document.getElementById('content').innerHTML = h;
 }
+
+function table(rows) {
+  let t = '<table><thead><tr>' + rows[0].map(c => '<th>'+esc(c)+'</th>').join('') + '</tr></thead><tbody>';
+  rows.slice(1).forEach(r => t += '<tr>' + r.map(c => '<td>'+esc(c)+'</td>').join('') + '</tr>');
+  return t + '</tbody></table>';
+}
 function esc(s) {
-  return (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  return (s == null ? '' : String(s)).replace(/[&<>"]/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 }
 </script>
 </body>

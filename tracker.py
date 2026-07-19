@@ -1,12 +1,9 @@
-"""主流程：抓 → 去重 → 研判 → 写 latest.json（双结构）+ reports/YYYY-MM-DD.md → 更新 state。
+"""主流程：抓 → 去重 → 研判 → 写 latest.json + reports/YYYY-MM-DD.md → 更新 state。
 
-借鉴 xueqiu-tracker 的：
-  - load_state/save_state 增量游标
-  - latest.json 双结构（顶层合并 + 单用户明细 + daily_summary）
-  - 无新增时 recent_posts 兜底展示
-补回（雪球已删、本仓需求）：
-  - 持仓入表 / 昵称映射研判 → 回写 state（workflow commit 持久化）
-  - 发言聚合（>阈值按标的聚类，沿用 douban_speaker_bot.aggregate_posts 思路）
+报告结构严格对齐 IMA 每日投资简报（6 大板块骨架）：
+  ① 持仓追踪  ② 今日总览  ③ 本次结果  ④ 今日发言聚合  ⑤ 投资风格分析  ⑥ 昵称映射表
+持仓/风格/昵称 从 state.json / investor_profile.json / nickname_rules 自动填充；
+今日总览/发言聚合 由 LLM 从当日发言提取。LLM 的持仓/昵称产出仅作【待确认建议】，不污染 state。
 """
 import datetime
 import json
@@ -15,13 +12,15 @@ import os
 from config import (DATA_DIR, REPORT_DIR, STATE_FILE, RECENT_N,
                     AGGREGATE_THRESHOLD, USER_HINTS)
 from scraper import scrape_user
-from analyzer import daily_summary, analyze_positions_and_nicknames
+from analyzer import (daily_summary, analyze_positions_and_nicknames,
+                      build_daily_overview, load_investor_profile)
+from nickname_rules import load_nickname_rules
 from query_stock import query_stock
 
 CST = datetime.timezone(datetime.timedelta(hours=8))
 
 
-# ============ 状态管理（增量游标 + 昵称 + 持仓）============
+# ============ 状态管理（增量游标 + 昵称 + 持仓 + 累计数）============
 def _load_json_tolerant(fh):
     """宽容加载 JSON（去尾随逗号，沿用 douban_speaker_bot 实战验证）。"""
     import re as _re
@@ -39,6 +38,7 @@ def load_state():
         st = {}
     st.setdefault("updated_at", "")
     st.setdefault("last_cursor", "")          # 上次最新发言时间游标（去重用）
+    st.setdefault("total_archived", 0)        # 累计存档发言数（本次结果展示）
     st.setdefault("nickname_map", {})
     st.setdefault("positions", {"positions": []})
     return st
@@ -62,6 +62,7 @@ def aggregate_posts(posts, nickname_map, positions):
     # 最长优先匹配，避免部分命中
     kws = sorted(keywords.keys(), key=len, reverse=True)
     groups = {}
+    total = len(posts) or 1
     for post in posts:
         text = post.get("content", "")
         hit = None
@@ -75,18 +76,119 @@ def aggregate_posts(posts, nickname_map, positions):
         g["times"].append(post.get("time", ""))
         if len(g["samples"]) < 3:
             g["samples"].append(post.get("content", "")[:120])
-    return sorted(groups.items(), key=lambda x: x[1]["count"], reverse=True)
+    ranked = sorted(groups.items(), key=lambda x: x[1]["count"], reverse=True)
+    # 附占比
+    out = []
+    for label, g in ranked:
+        pct = round(g["count"] / total * 100)
+        out.append((label, g, pct))
+    return out
 
 
-# ============ 报告渲染 =========
-def build_report(ts, summary, posts, analysis, today_count):
-    L = [f"# 豆瓣楼主发言追踪 · {ts}", "",
-         f"- 跟踪楼主：`{os.getenv('DOUBAN_TARGET_USER', '楼主')}` ｜ 当日新增发言：**{today_count}** 条", ""]
-    L.append("## 今日讨论归纳")
-    L.append(f"> {summary}")
+# ============ 报告渲染（IMA 同构 6 板块）============
+def _positions_table(positions):
+    L = ["| 标的 | 状态 | 类型 | 成本价 | 市值 | 备注 | 提及日期 |",
+         "|------|------|------|--------|------|------|----------|"]
+    for p in positions.get("positions", []):
+        mv = p.get("market_value") or "暂无"
+        L.append(f"| {p.get('name','')} | {p.get('action','')} | {p.get('category','')} | "
+                 f"{p.get('cost_price','暂无')} | {mv} | "
+                 f"{p.get('note','')[:60]} | {p.get('first_seen','')} |")
+    return "\n".join(L)
+
+
+def build_report(ts, name, summary, posts, analysis, overview, today_count, total_archived):
+    """渲染 IMA 同构 6 板块日报 Markdown。"""
+    L = [f"# 📋 楼主每日发言推送",
+         "",
+         f"> **推送日期**：{ts[:10]} ｜ **执行时间**：{ts} ｜ **监控用户**：`{name}`",
+         f"> **所在小组**：{os.getenv('DOUBAN_GROUP_URLS', '豆瓣小组').split(',')[0].split('/')[-2] if os.getenv('DOUBAN_GROUP_URLS') else '豆瓣小组'}",
+         ""]
+
+    # ① 持仓追踪
+    L.append("## 📊 持仓追踪")
+    L.append(f"> 上次更新：{ts[:10]} ｜ 基于楼主发言持续追踪（共 {len(analysis) and ''}{_pos_count()} 项）")
+    L.append("")
+    L.append(_positions_table(load_state_positions()))
+    L.append("")
+    L.append("> ⚠️ 执行任务时如发现新操作，请更新 `state.json` 的 `positions`。成本价和市值有数据才填，没有则保留「暂无」。")
     L.append("")
 
-    # 持仓/昵称研判结果（仅作建议，未自动写入 state.json）
+    # ② 今日总览（6 子板块）
+    L.append("## 🌅 今日总览")
+    if overview.get("market_background"):
+        L.append("### 📌 市场背景")
+        L.append(overview["market_background"])
+        L.append("")
+    if overview.get("core_views"):
+        L.append("### 📌 楼主核心观点")
+        L.append(overview["core_views"])
+        L.append("")
+    if overview.get("today_actions"):
+        L.append("### 📌 今日操作")
+        L.append(overview["today_actions"])
+        L.append("")
+    if overview.get("position_dynamics"):
+        L.append("### 📌 持仓动态")
+        L.append(overview["position_dynamics"])
+        L.append("")
+    if overview.get("favored_sectors"):
+        L.append("### 📌 看好板块/方向")
+        L.append(overview["favored_sectors"])
+        L.append("")
+    if overview.get("risk_warnings"):
+        L.append("### 📌 风险提示")
+        L.append(overview["risk_warnings"])
+        L.append("")
+
+    # ③ 本次结果
+    L.append("## 📊 本次结果")
+    L.append(f"- **今日发言**：{today_count} 条")
+    L.append(f"- **累计存档**：{total_archived} 条")
+    L.append("")
+
+    # ④ 今日发言聚合
+    L.append(f"## 📝 今日发言聚合（共 {today_count} 条）")
+    if today_count > AGGREGATE_THRESHOLD:
+        for label, g, pct in aggregate_posts(posts, {}, {"positions": []}):
+            tr = (g["times"][0] if g["times"] else "")
+            L.append(f"### {label}（提及 {g['count']} 次，占比 {pct}%）{tr}")
+            for s in g["samples"]:
+                L.append(f"- {s}")
+            L.append("")
+    else:
+        for p in posts[:60]:
+            pic = " [图]" if "![图片]" in p.get("content", "") else ""
+            q = f"  ⊳ {p['quote']}" if p.get("quote") else ""
+            L.append(f"- ({p.get('time','')}){pic} {p.get('content','')[:300]}{q}")
+        L.append("")
+
+    # ⑤ 投资风格分析（读 investor_profile.json）
+    prof = load_investor_profile()
+    if prof:
+        L.append("## 🧠 投资风格分析")
+        L.append("> 📏 字数软约束（供 AI 参考）：各维度 90-110 字；综合评估 200-250 字。")
+        L.append("")
+        L.append(prof)
+        L.append("")
+        L.append("> ⚠️ 执行任务时请根据今日新发言补充分析，与历史结论归纳提炼后更新 `investor_profile.json`。")
+        L.append("")
+
+    # ⑥ 昵称映射表（规律 + 映射）
+    L.append("## 🏷️ 昵称映射表")
+    rules = load_nickname_rules()
+    if rules:
+        L.append("### 📖 昵称规律（供 AI 判断新昵称时参考）")
+        L.append(rules)
+        L.append("")
+    L.append("### 📋 已收录映射")
+    L.append("| 昵称 | 对应名称 |")
+    L.append("|------|----------|")
+    for k, v in load_state_nicknames().items():
+        L.append(f"| {k} | {v} |")
+    L.append("")
+
+    # 待确认建议区（LLM 产出，不自动写 state）
     L.append("> ⚠️ 以下为 LLM **建议**，未自动写入状态文件。请人工确认后，"
              "本地编辑 `state.json` 的 `nickname_map` / `positions` 并 push 生效。")
     L.append("")
@@ -102,23 +204,24 @@ def build_report(ts, summary, posts, analysis, today_count):
             L.append(f"- `{k}` = {v}")
         L.append("")
 
-    # 聚合 or 逐条
-    if today_count > AGGREGATE_THRESHOLD:
-        L.append(f"## 发言聚合（共 {today_count} 条，按标的聚类）")
-        for label, g in aggregate_posts(posts, {}, {"positions": []}):
-            tr = (g["times"][0] if g["times"] else "")
-            L.append(f"### {label} （{g['count']} 次提及）{tr}")
-            for s in g["samples"]:
-                L.append(f"- {s}")
-            L.append("")
-    else:
-        L.append("## 原始发言")
-        for p in posts[:60]:
-            pic = " [图]" if "![图片]" in p.get("content", "") else ""
-            q = f"  ⊳ {p['quote']}" if p.get("quote") else ""
-            L.append(f"- ({p.get('time','')}){pic} {p.get('content','')[:300]}{q}")
-        L.append("")
+    L.append(f"\n*🤖 自动生成于 {ts} ｜ 豆瓣楼主发言追踪*")
     return "\n".join(L)
+
+
+# 缓存在 main 中注入，避免重复 load_state
+_STATE_CACHE = {}
+
+
+def load_state_positions():
+    return _STATE_CACHE.get("positions", {"positions": []})
+
+
+def load_state_nicknames():
+    return _STATE_CACHE.get("nickname_map", {})
+
+
+def _pos_count():
+    return len(_STATE_CACHE.get("positions", {}).get("positions", []))
 
 
 # ============ 主流程 =========
@@ -127,6 +230,8 @@ def main():
     os.makedirs(REPORT_DIR, exist_ok=True)
 
     st = load_state()
+    _STATE_CACHE["positions"] = st["positions"]
+    _STATE_CACHE["nickname_map"] = st["nickname_map"]
     print(f"[状态] 上次游标: {st['last_cursor'][:16] or '无'} ｜ 昵称 {len(st['nickname_map'])} ｜ 持仓 {len(st['positions']['positions'])}")
 
     # 1. 抓取
@@ -147,6 +252,7 @@ def main():
     summary = daily_summary({"name": name, "posts": display})
     print(f"[归纳] {summary}")
     analysis = analyze_positions_and_nicknames(display, st["nickname_map"], st["positions"])
+    overview = build_daily_overview(display, st["nickname_map"], st["positions"])
     # 查价：对研判出的标的补实时价格
     for p in analysis["new_positions"]:
         if p.get("code"):
@@ -156,35 +262,45 @@ def main():
                 p["change"] = q.get("change", "")
                 p["price_source"] = q.get("source", "")
 
-    # 4. 写 latest.json（LLM 产出仅作【待确认建议】，不自动写 state）
+    # 4. 累计存档数更新
+    st["total_archived"] = st.get("total_archived", 0) + len(new)
+
+    # 5. 写 latest.json（6 板块结构；LLM 持仓/昵称产出仅作【待确认建议】）
     now = datetime.datetime.now(CST)
     ts = now.strftime("%Y-%m-%d %H:%M:%S")
     latest = {
         "fetched_at": ts,
-        "daily_summary": summary,
-        "today_count": len(new),
-        "showing_fallback": showing_fallback,
-        "pending_positions": analysis["new_positions"],     # 待人工确认，不自动入表
-        "pending_nicknames": analysis["new_nicknames"],     # 待人工确认，不自动映射
-        "mentions": analysis["mentions"],
-        "posts": display,
         "user": {"name": name, "count": len(display)},
+        "today_count": len(new),
+        "total_archived": st["total_archived"],
+        "showing_fallback": showing_fallback,
+        "daily_summary": summary,
+        "overview": overview,                       # 今日总览 6 子板块
+        "positions": st["positions"],              # 持仓追踪（读 state）
+        "investor_profile": load_investor_profile(),  # 投资风格分析
+        "nickname_rules": load_nickname_rules(),      # 昵称规律
+        "nickname_map": st["nickname_map"],           # 已收录映射
+        "pending_positions": analysis["new_positions"],    # 待确认
+        "pending_nicknames": analysis["new_nicknames"],    # 待确认
+        "mentions": analysis["mentions"],
+        "aggregated": aggregate_posts(display, st["nickname_map"], st["positions"]) if len(new) > AGGREGATE_THRESHOLD else None,
+        "posts": display,
     }
     with open(f"{DATA_DIR}/latest.json", "w", encoding="utf-8") as f:
         json.dump(latest, f, ensure_ascii=False, indent=2)
 
-    # 5. 写 reports（标注待确认）
-    md = build_report(ts, summary, display, analysis, len(new))
+    # 6. 写 reports（6 板块）
+    md = build_report(ts, name, summary, display, analysis, overview, len(new), st["total_archived"])
     with open(f"{REPORT_DIR}/{now.strftime('%Y-%m-%d')}.md", "w", encoding="utf-8") as f:
         f.write(md)
 
-    # 6. 仅更新游标（state 的 nickname_map/positions 只在人工确认后由你本地改 state.json 生效）
+    # 7. 仅更新游标 + 累计数（nickname_map/positions 仍只由人工确认后本地改 state.json 生效）
     if display:
         st["last_cursor"] = max((p.get("date", "") + p.get("sortable_time", "") for p in display))
     st["updated_at"] = ts
     save_state(st)
 
-    print(f"[完成] data/latest.json(建议区) + reports/{now.strftime('%Y-%m-%d')}.md 已生成；"
+    print(f"[完成] data/latest.json(6板块) + reports/{now.strftime('%Y-%m-%d')}.md 已生成；"
           f"昵称→{len(st['nickname_map'])} 持仓→{len(st['positions']['positions'])}（仅确认项）")
 
 
