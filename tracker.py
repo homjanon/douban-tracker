@@ -97,6 +97,25 @@ def _match_position(positions, target, nickname_map):
     return None
 
 
+def _is_valid_stock_target(target, nickname_map):
+    """阀门加强：新增持仓的标的必须是『已知标的/昵称』或『符合代码格式』，否则拒绝。
+    避免 LLM 把策略/板块/模糊词（如『观察策略』『科技基金』）当持仓写入。
+    """
+    t = (target or "").strip()
+    if not t:
+        return False
+    # 已是已知昵称或持仓名
+    if t in nickname_map or t in nickname_map.values():
+        return True
+    # 股票代码格式：6 位纯数字（A股/港股） / 含 ETF / 含 QDII / 含 (LOF) / 含 基金
+    if (len(t) == 6 and t.isdigit()) or "ETF" in t or "QDII" in t or "LOF" in t or "基金" in t:
+        return True
+    # 已知持仓名子串（如『浦银安盛全球智能科技』匹配『浦银安盛全球智能科技(QDII)A』）
+    if any(t in v or v in t for v in nickname_map.values()):
+        return True
+    return False
+
+
 def apply_position_updates(st, overview, today):
     """依据今日操作表更新 state.positions。返回 [(变更描述)] 供审计。
     阀门：
@@ -116,6 +135,9 @@ def apply_position_updates(st, overview, today):
         idx = _match_position(positions, r["target"], nickname_map)
         if r["action"] == "买入":
             if idx is None:
+                if not _is_valid_stock_target(r["target"], nickname_map):
+                    changes.append(f"🚫 拒增（非标的/策略词）：{r['target']}")
+                    continue
                 pos_list.append({
                     "name": r["target"], "code": "", "action": "买入",
                     "category": "", "cost_price": "暂无", "market_value": "暂无",
