@@ -10,11 +10,31 @@
       宁可信其有入表；70%+ 把握即可写映射；拿不准交给用户后续指正。
 """
 import json
+import os
 import re
 
 import requests
 
 from config import BACKENDS, TIMEOUT, USER_HINTS, USER_HINTS as _HINTS
+
+# 投资风格画像（楼主历史发言提炼，作研判上下文，避免误判其操作意图）
+_PROFILE_FILE = os.getenv("PROFILE_FILE", "investor_profile.json")
+
+
+def load_investor_profile():
+    """加载投资风格画像；缺失或损坏时返回空字符串（不影响主流程）。"""
+    try:
+        with open(_PROFILE_FILE, encoding="utf-8") as f:
+            d = json.load(f)
+        prof = d.get("profile", {})
+        if not prof:
+            return ""
+        parts = []
+        for k, v in prof.items():
+            parts.append(f"- {k}：{v}")
+        return "\n".join(parts)
+    except Exception:
+        return ""
 
 
 # ============ 通用 LLM 调用 ============
@@ -113,6 +133,7 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions):
     if not posts:
         return {"new_positions": [], "new_nicknames": {}, "mentions": {}}
     hint = USER_HINTS.get("default", "")
+    profile = load_investor_profile()
     text_blob = "\n".join(f"- {p.get('content', '')}" for p in posts[:40])
     nick_lines = "\n".join(f"  {k} = {v}" for k, v in nickname_map.items()) or "（空）"
     pos_lines = "\n".join(f"  {p.get('name','?')}" for p in positions.get("positions", [])) or "（空）"
@@ -123,7 +144,8 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions):
               "纯分析/看戏（如『这股不错』『可以关注』）不入表；拿不准宁可信其有。"
               "② 昵称——推断合理（70%+把握）即映射；无法推断跳过。"
               "发现错误用户会后续指正，无需过度谨慎。"
-              + ("\n\n黑话/昵称提示：\n" + hint if hint else ""))
+              + ("\n\n黑话/昵称提示：\n" + hint if hint else "")
+              + ("\n\n楼主投资风格画像（判断其操作意图时务必参考，避免误判）：\n" + profile if profile else ""))
     user = (f"现有昵称映射：\n{nick_lines}\n\n现有持仓：\n{pos_lines}\n\n"
             f"今日发言：\n{text_blob}\n\n"
             f"请输出 JSON：\n"
