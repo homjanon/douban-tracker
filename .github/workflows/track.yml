@@ -34,6 +34,28 @@ jobs:
           SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
         run: python tracker.py
 
+      - name: 校验 latest.json 结构完整性
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open('data/latest.json', encoding='utf-8'))
+          # ① 顶层 6 板块键
+          required = ["fetched_at","today_count","overview","positions",
+                      "investor_profile","nickname_map"]
+          missing = [k for k in required if k not in d]
+          # ② overview 6 子板块键
+          ov = d.get("overview", {}) or {}
+          ov_keys = {"market_background","core_views","today_actions",
+                     "position_dynamics","favored_sectors","risk_warnings"}
+          ov_missing = ov_keys - set(ov.keys())
+          if missing or ov_missing:
+              print("❌ latest.json 结构不完整，已拦截推送以防看板空白：")
+              if missing:    print("  缺失顶层键:", missing)
+              if ov_missing: print("  缺失 overview 子键:", sorted(ov_missing))
+              sys.exit(1)
+          print("✅ latest.json 6 板块结构校验通过（顶层 + overview 子板块齐全）")
+          PY
+
       - name: 提交数据回仓库
         run: |
           git config user.name "github-actions[bot]"
