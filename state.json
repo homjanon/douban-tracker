@@ -3,7 +3,7 @@
   "last_cursor": "2026-07-1918:30:12",
   "nickname_map": {
     "C50": "创业板50ETF",
-    "cc": "华安文体健康混合",
+    "cc": "华安文体健康混合A",
     "k50": "科创50",
     "kun": "昆仑万维",
     "sj": "视觉中国",
@@ -18,7 +18,7 @@
     "华子": "华泰保兴安悦债券",
     "华宝 zy": "华宝致远混合(QDII)A",
     "华宝zy": "华宝致远混合(QDII)A",
-    "卖国": "PCB板块（英伟达AI产业链）",
+    "卖国": "PCB、光模块、通信板块（英伟达AI产业链）",
     "周经理": "中欧新趋势混合(LOF)A",
     "国富亚洲": "国富亚洲机会股票(QDII)A",
     "国泰纳指": "国泰纳斯达克100指数(QDII)",
@@ -56,7 +56,7 @@
         "code": "301171",
         "action": "持有",
         "first_seen": "07-03",
-        "category": "A股传媒",
+        "category": "传媒",
         "cost_price": "约20-29元",
         "last_note": "",
         "current_price": "26.60（-9.68%）"
@@ -66,7 +66,7 @@
         "code": "603598",
         "action": "持有",
         "first_seen": "07-03",
-        "category": "A股传媒",
+        "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
         "current_price": "15.07（-7.03%）"
@@ -76,7 +76,7 @@
         "code": "603533",
         "action": "持有",
         "first_seen": "07-03",
-        "category": "A股传媒",
+        "category": "传媒",
         "cost_price": "约25-30元",
         "last_note": "",
         "current_price": "17.90（-8.21%）"
@@ -86,7 +86,7 @@
         "code": "000681",
         "action": "持有",
         "first_seen": "07-03",
-        "category": "A股传媒",
+        "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
         "current_price": "16.22（-6.78%）"
@@ -96,7 +96,7 @@
         "code": "300364",
         "action": "持有",
         "first_seen": "07-02",
-        "category": "A股传媒",
+        "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
         "current_price": "21.45（-7.94%）"
@@ -106,7 +106,7 @@
         "code": "300058",
         "action": "持有",
         "first_seen": "07-02",
-        "category": "A股传媒",
+        "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
         "current_price": "12.14（-8.24%）"
@@ -116,7 +116,7 @@
         "code": "159949",
         "action": "持有",
         "first_seen": "07-02",
-        "category": "科技ETF",
+        "category": "创业板",
         "cost_price": "暂无",
         "last_note": "",
         "current_price": "1.6332（-7.45%）"
@@ -146,7 +146,7 @@
         "code": "015608",
         "action": "持有",
         "first_seen": "07-03",
-        "category": "混合基金",
+        "category": "化工基金",
         "cost_price": "暂无",
         "last_note": "",
         "current_price": "2.2844（-8.11%）"
@@ -216,7 +216,7 @@
         "code": "539002",
         "action": "持有",
         "first_seen": "07-02",
-        "category": "新兴市场基金",
+        "category": "含海力士基金",
         "cost_price": "暂无",
         "last_note": "",
         "current_price": "2.2973（-0.42%）"
@@ -226,22 +226,10 @@
         "code": "600036",
         "action": "持有",
         "first_seen": "07-03",
-        "category": "A股红利",
+        "category": "红利/银行",
         "cost_price": "约30元",
         "last_note": "",
         "current_price": "38.02（0.93%）"
-      },
-      {
-        "name": "巨无霸",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "场外忍耐至本周五，狠狠买入",
-        "last_note": "提及‘忍到本周五才狠狠干’，暗示已在低位或冰点期介…",
-        "first_seen": "2026-07-19",
-        "current_price": "暂无"
       }
     ]
   },
