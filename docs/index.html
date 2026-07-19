@@ -26,10 +26,21 @@
   .post .t { color: #999; font-size: 12px; }
   .empty { color: #999; font-style: italic; }
   .fallback { background: #fff7e6; border-left: 4px solid #faad14; padding: 8px 12px; border-radius: 4px; }
+  .toolbar { margin: 0 0 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .toolbar button { background: #07c160; color: #fff; border: none; border-radius: 6px;
+                    padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  .toolbar button:hover { background: #06ad56; }
+  .toolbar .hint { color: #999; font-size: 12px; }
 </style>
 </head>
 <body>
 <h1>📋 楼主每日发言推送</h1>
+<div class="toolbar">
+  <button onclick="window.open('https://github.com/homjanon/douban-tracker/actions/workflows/track.yml','_blank')">
+    🔄 手动触发更新
+  </button>
+  <span class="hint">点击后在 GitHub 页面点「Run workflow」即可立即运行（零密钥、安全）</span>
+</div>
 <div class="meta" id="meta">加载中…</div>
 <div id="content">读取 data/latest.json 中…</div>
 

@@ -255,3 +255,80 @@ def _to_text(v):
     if isinstance(v, dict):
         return "\n".join(f"{k}：{_to_text(val)}" for k, val in v.items()).strip()
     return str(v).strip()
+
+
+# ============ 投资风格画像全自动增量更新 ============
+def update_investor_profile(overview, posts, today):
+    """复用今日总览内容，对 investor_profile.json 做增量更新。
+
+    阀门：LLM 只返回『确有今日发言依据』的维度修订（含 evidence）；
+          无变化/无依据的维度不返回。返回空表示本次不改动。
+    安全阀：单次修订维度 > 5 个 → 不回写、返回告知熔断。
+    成功回写 investor_profile.json（profile 覆盖 + evolution 追加 + last_updated 更新）。
+    返回 [(变更描述)] 供审计。
+    """
+    prof_text = load_investor_profile()
+    if not prof_text:
+        return []
+    ov = overview or {}
+    overview_blob = "\n".join(f"- {k}：{_to_text(v)}" for k, v in ov.items() if v)
+    if not overview_blob.strip():
+        return []
+
+    system = ("你是投资心理分析师。依据楼主【今日总览】，对已有投资风格画像做**增量修订**。"
+              "严格规则：① 仅当今日发言确能支撑某维度更新时才返回该维度；"
+              "② 每条修订必须附 evidence（今日原话/事实依据）；无依据绝不改动；"
+              "③ 无变化的维度不要返回；不要重写整个画像、不要凑字数；单维度 ≤150 字。")
+    user = (f"现有画像：\n{prof_text}\n\n"
+            f"今日总览（增量依据）：\n{overview_blob}\n\n"
+            f"请输出 JSON：{{ \"updates\": [{{ \"dimension\": \"维度名\", "
+            f"\"new_text\": \"修订后表述\", \"evidence\": \"今日依据\" }}] }}\n"
+            f"无更新则 \"updates\": []。只输出 JSON。")
+
+    out = call_multi([{"role": "system", "content": system},
+                      {"role": "user", "content": user}])
+    if not out:
+        return []
+    raw = _extract_text(out)
+    try:
+        m = re.search(r'\{.*\}', raw, flags=re.DOTALL)
+        data = json.loads(m.group(0)) if m else {}
+    except Exception:
+        return []
+    updates = data.get("updates", []) or []
+    # 过滤：必须含 new_text 且 evidence
+    valid = [u for u in updates
+             if isinstance(u, dict) and u.get("dimension") and u.get("new_text") and u.get("evidence")]
+
+    if len(valid) > 5:
+        print(f"[画像更新] ⚠️ 单次修订 {len(valid)} 维度 > 5，触发熔断，不回写")
+        return [f"🚫 熔断：拟改 {len(valid)} 维度 > 5，未回写"]
+
+    if not valid:
+        return []
+
+    # 回写 investor_profile.json
+    try:
+        with open(_PROFILE_FILE, encoding="utf-8") as f:
+            prof = json.load(f)
+    except Exception:
+        return []
+    prof_dim = prof.setdefault("profile", {})
+    evo_list = prof.get("evolution", "")
+    changed = []
+    for u in valid:
+        dim = u["dimension"]
+        ev = u.get("evidence", "")
+        prof_dim[dim] = _to_text(u["new_text"])
+        changed.append(f"🔄 {dim}（依据：{ev[:30]}）")
+    # evolution 追加
+    new_evo = f"{today}：更新 {len(valid)} 个维度（{', '.join(u['dimension'] for u in valid)}）"
+    prof["evolution"] = f"{evo_list}\n{new_evo}" if evo_list else new_evo
+    prof["last_updated"] = today
+    try:
+        with open(_PROFILE_FILE, "w", encoding="utf-8") as f:
+            json.dump(prof, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[画像更新] ⚠️ 写回失败: {e}")
+        return []
+    return changed

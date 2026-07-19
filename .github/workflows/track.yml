@@ -2,7 +2,7 @@ name: 豆瓣楼主发言追踪
 
 on:
   schedule:
-    - cron: '0 10 * * 1-5'       # 北京时间 18:00（UTC+8 = UTC 10:00，工作日）
+    - cron: '30 8 * * *'         # 北京时间 16:30（UTC+8 = UTC 08:30，每天含周末）
   workflow_dispatch:            # 支持手动触发
 
 permissions:
@@ -56,10 +56,29 @@ jobs:
           print("✅ latest.json 6 板块结构校验通过（顶层 + overview 子板块齐全）")
           PY
 
+      - name: 校验自动回写文件合法性
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          # state.json 回写后必须仍是合法结构
+          st = json.load(open('state.json', encoding='utf-8'))
+          pos = st.get('positions', {}).get('positions', [])
+          if not isinstance(pos, list):
+              print("❌ state.json.positions 非列表，拦截推送"); sys.exit(1)
+          if len(pos) == 0:
+              print("❌ 持仓被清空，疑似自动回写异常，拦截推送"); sys.exit(1)
+          # investor_profile.json 回写后仍含 7 维度
+          prof = json.load(open('investor_profile.json', encoding='utf-8'))
+          dims = prof.get('profile', {})
+          if len(dims) < 5:
+              print("❌ 投资风格画像维度异常(<5)，拦截推送"); sys.exit(1)
+          print(f"✅ 自动回写校验通过：持仓 {len(pos)} 项 / 画像 {len(dims)} 维度")
+          PY
+
       - name: 提交数据回仓库
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data reports state.json
+          git add data reports state.json investor_profile.json
           git diff --cached --quiet || git commit -m "chore: 每日追踪更新 $(date +%F)"
           git push

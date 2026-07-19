@@ -198,6 +198,7 @@ def normalize(posts):
 
 def scrape_user():
     """抓取目标楼主发言（多组支持，合并去重）。返回标准化 post 列表。"""
+    today = datetime.datetime.now().strftime('%Y-%m-%d')
     all_posts = []
     for gu in DOUBAN_GROUP_URLS:
         print(f"\n=== 小组 {gu} ===")
@@ -208,4 +209,7 @@ def scrape_user():
         posts = fetch_posts(latest['url'], DOUBAN_TARGET_USER)
         print(f"  [抓取] 去重后 {len(posts)} 条")
         all_posts.extend(posts)
-    return normalize(all_posts)
+    # 方案 A：严格只保留"当天"发言（末两页可能混入历史发言，此处按日期过滤）
+    day_posts = [p for p in all_posts if p.get('date') == today]
+    print(f"  [当日过滤] 仅留 {today} 发言：{len(day_posts)} 条（丢弃历史 {len(all_posts)-len(day_posts)} 条）")
+    return normalize(day_posts)
