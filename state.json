@@ -57,7 +57,7 @@
         "action": "持有",
         "first_seen": "07-03",
         "category": "A股传媒",
-        "cost_price": "约20-29元（备注「成本2开头」，现价32.0元）",
+        "cost_price": "约20-29元",
         "last_note": "",
         "current_price": "26.60（-9.68%）"
       },
@@ -67,7 +67,7 @@
         "action": "持有",
         "first_seen": "07-03",
         "category": "A股传媒",
-        "cost_price": "暂无（仅提及阻力20附近，无成本数据）",
+        "cost_price": "暂无",
         "last_note": "",
         "current_price": "15.07（-7.03%）"
       },
@@ -77,8 +77,8 @@
         "action": "持有",
         "first_seen": "07-03",
         "category": "A股传媒",
-        "cost_price": "偏高，可能25-30元（备注「大亏中成本偏高」；阻力23附近；现价19.26元）",
-        "last_note": "提及作为影视改编逻辑的潜在标的，未明确执行买卖操作，属观点分享。",
+        "cost_price": "约25-30元",
+        "last_note": "",
         "current_price": "17.90（-8.21%）"
       },
       {
@@ -87,7 +87,7 @@
         "action": "持有",
         "first_seen": "07-03",
         "category": "A股传媒",
-        "cost_price": "暂无（仅提及阻力22.5-23，无成本数据）",
+        "cost_price": "暂无",
         "last_note": "",
         "current_price": "16.22（-6.78%）"
       },
@@ -97,7 +97,7 @@
         "action": "持有",
         "first_seen": "07-02",
         "category": "A股传媒",
-        "cost_price": "暂无（仅提及阻力27，无成本数据）",
+        "cost_price": "暂无",
         "last_note": "",
         "current_price": "21.45（-7.94%）"
       },
@@ -107,7 +107,7 @@
         "action": "持有",
         "first_seen": "07-02",
         "category": "A股传媒",
-        "cost_price": "暂无（现价13.2元，无成本数据）",
+        "cost_price": "暂无",
         "last_note": "",
         "current_price": "12.14（-8.24%）"
       },
@@ -197,7 +197,7 @@
         "action": "持有",
         "first_seen": "07-03",
         "category": "美股基金",
-        "cost_price": "约10万元（2026年6月4日一次性买入）",
+        "cost_price": "约10万元",
         "last_note": "",
         "current_price": "1.0814（0.0000%）"
       },
@@ -227,7 +227,7 @@
         "action": "持有",
         "first_seen": "07-03",
         "category": "A股红利",
-        "cost_price": "约30元（2026年7月3日现价36.88元，浮盈约23%）",
+        "cost_price": "约30元",
         "last_note": "",
         "current_price": "38.02（0.93%）"
       },

@@ -83,6 +83,40 @@ def enrich_prices(positions):
         p["current_price"] = results.get(p["name"], "暂无")
 
 
+# ============ 持仓字段提纯（防 LLM 写长文本，让提及列格式统一）============
+def _clean_cost_price(raw):
+    """把任意成本描述压成简洁形态：约xx元 / 约xx-x元 / 约x万元；无明确数则『暂无』。"""
+    if not raw or "暂无" in str(raw):
+        return "暂无"
+    s = str(raw)
+    # 约xx万元
+    m = re.search(r'约\s*(\d+(?:\.\d+)?)\s*万元', s)
+    if m:
+        return f"约{m.group(1)}万元"
+    # 约xx元 或 xx-x元（可能带『可能/偏高』等前缀，直接抓数字段）
+    m = re.search(r'约?\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*元', s)
+    if m:
+        return f"约{m.group(1)}-{m.group(2)}元"
+    m = re.search(r'约?\s*(\d+(?:\.\d+)?)\s*元', s)
+    if m:
+        return f"约{m.group(1)}元"
+    return "暂无"
+
+
+def _clean_last_note(raw, limit=25):
+    """当日动态截断/清空：超长或含分析腔（观点/分享/提及作为）直接清空，保持提及列简洁。"""
+    if not raw:
+        return ""
+    s = str(raw).strip()
+    # 分析腔（LLM 观点描述，非操作动态）→ 清空
+    if re.search(r'(观点|分享|提及作为|属\b|逻辑|潜在标的|未明确|仅观点|仅供参考)', s):
+        return ""
+    # 超长截断
+    if len(s) > limit:
+        return s[:limit] + "…"
+    return s
+
+
 # ============ 持仓追踪动态更新（复用今日操作板块 + 严格阀门）============
 def parse_today_actions(overview):
     """解析 overview.today_actions 表格，返回 [{action, target, detail}]。
@@ -326,18 +360,11 @@ def _fmt_mention_date(d):
 
 
 def _cost_hint(cost_price):
-    """从成本价字段提取『约xx』精简表述，用于提及栏。无有效成本返回空。"""
-    if not cost_price:
+    """成本价已事先由 _clean_cost_price 提纯为『约xx元/约xx-x元/约x万元』，
+    此处无需再正则抽取，非『暂无』则直接返回。无有效成本返回空。"""
+    if not cost_price or "暂无" in str(cost_price):
         return ""
-    s = str(cost_price)
-    # 提取「约xx元」「xx万元」「xx-xx元」中的约数
-    m = re.search(r'约([\d万.]+元?万?元?)', s)
-    if m:
-        return f"约{m.group(1)}"
-    m2 = re.search(r'(\d+-\d+元)', s)
-    if m2:
-        return f"约{m2.group(1)}"
-    return ""
+    return str(cost_price).strip()
 
 
 def _positions_table(positions):
@@ -549,6 +576,11 @@ def main():
 
     # 6.5 实时查价注入持仓（腾讯/天天基金，复用 query_stock）
     enrich_prices(st["positions"])
+
+    # 6.6 持仓字段提纯（防 LLM 写长文本，统一提及列格式：成本→约xx；动态→截断/清空）
+    for p in st["positions"]["positions"]:
+        p["cost_price"] = _clean_cost_price(p.get("cost_price", ""))
+        p["last_note"] = _clean_last_note(p.get("last_note", ""))
 
     # 7. 写 latest.json（6 板块结构；持仓/画像已自动增量更新并透明记录）
     now = datetime.datetime.now(CST)
