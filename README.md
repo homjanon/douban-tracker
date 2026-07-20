@@ -2,7 +2,7 @@
 
 基于 **GitHub Actions + Pages** 的豆瓣小组楼主发言自动追踪工具。**每日北京时间 16:30（含周末）** 自动运行（GitHub Pages 手动触发按钮亦可即时运行），抓取楼主发言 → LLM 研判 → 生成结构化每日简报 → 推送至仓库并发布 Pages 看板。
 
-> 借鉴 [`homjanon/xueqiu-tracker`](https://github.com/homjanon/xueqiu-tracker) 的 state 增量游标 / latest.json 双结构 / 四级 LLM 后端链，并补回其已删除的【持仓入表】+【昵称映射】能力。
+> 借鉴 [`homjanon/xueqiu-tracker`](https://github.com/homjanon/xueqiu-tracker) 的 state 增量游标 / latest.json 双结构 / 三级 LLM 后端链，并补回其已删除的【持仓入表】+【昵称映射】能力。
 
 ## 报告结构（对齐 IMA 每日投资简报）
 
@@ -31,12 +31,11 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 ### 投资风格画像全自动增量更新
 `update_investor_profile` 复用「今日总览」内容，对 `investor_profile.json` 做增量修订：仅当有今日发言依据时才改对应维度（附 evidence），无变化的维度不返回；单次修订 > 5 维度触发熔断不回写。
 
-### LLM 四级后端链（agnes 主力 + 雪球三级备用）
+### LLM 三级后端链（agnes 主力 + Qwen 二级 + SenseNova 兜底）
 按序尝试，首个有 key 且成功即生效：
 1. **Agnes AI** `agnes-2.0-flash`（免费，主力）
-2. NVIDIA `qwen3.5-122b-a10b`（免费备用 1）
-3. NVIDIA `kimi-k2.5`（免费备用 2）
-4. 硅基流动 `Qwen3.5-35B-A3B`（付费兜底）
+2. NVIDIA `qwen3.5-122b-a10b`（免费，二级）
+3. 商汤日日新 `sensenova-6.7-flash-lite`（免费，Token Plan 限时免费，兜底）
 
 ### 昵称规律固化（供 LLM 判新昵称）
 `nickname_rules.py` / `nickname_rules.json` 将 47 条权威映射反推出 **5 类命名规律**（拼音首字母 / 小老代指 / 戏称黑话 / 谐音取字 / 机构基金昵称），注入 LLM 提示。LLM 先按规律推断新昵称，再用 `config.USER_HINTS` 的确定映射校验，冲突以映射为准。
@@ -46,7 +45,7 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 ```
 douban-tracker/
 ├── .github/workflows/track.yml   # Actions：cron 16:30 + 手动触发 + commit/push
-├── config.py                     # 四端 LLM 后端 + USER_HINTS（确定映射）
+├── config.py                     # 三端 LLM 后端 + USER_HINTS（确定映射）
 ├── scraper.py                    # 豆瓣 HTTP+cookie 抓取（无 Playwright/WAF），当日全量
 ├── analyzer.py                   # LLM 研判：归纳 / 持仓昵称 / 今日总览（6 子板块）
 ├── tracker.py                    # 主流程：抓→研判→持仓回写/提纯→6 板块渲染→写 latest.json/reports
@@ -67,8 +66,8 @@ douban-tracker/
 | `DOUBAN_GROUP_URLS` | 追踪的小组 URL，逗号分隔支持多组 |
 | `DOUBAN_TARGET_USER` | 楼主昵称 |
 | `AGNES_API_KEY` | Agnes 主力后端 key |
-| `NVIDIA_API_KEY` | 备用 1/2 key |
-| `SILICONFLOW_API_KEY` | 付费兜底 key |
+| `NVIDIA_API_KEY` | 二级后端 key（Qwen3.5-122B） |
+| `SENSENOVA_API_KEY` | 兜底后端 key（商汤 SenseNova 6.7 Flash-Lite，免费） |
 
 ## 本地调试
 
