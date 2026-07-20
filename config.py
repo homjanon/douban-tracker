@@ -1,10 +1,9 @@
 """配置：从环境变量读取，缺失时用默认值。
 
-LLM 后端优先级（agnes 主力 + 雪球三级备用）：
+LLM 后端优先级（agnes 主力 + Qwen 二级 + SenseNova 兜底）：
   1) Agnes AI agnes-2.0-flash —— 免费多模态，主力
-  2) NVIDIA Qwen3.5-122B-A10B —— 免费，备用1
-  3) NVIDIA Kimi-K2.5          —— 免费，备用2（走 build.nvidia.com 专属 endpoint）
-  4) 硅基流动 Qwen3.5-35B-A3B  —— 便宜付费，最后兜底
+  2) NVIDIA Qwen3.5-122B-A10B —— 免费，二级
+  3) 商汤日日新 SenseNova 6.7 Flash-Lite —— 免费，兜底
 
 抓取：豆瓣话题页 + DOUBAN_COOKIE 登录态（HTTP 直连，无 WAF/Playwright）。
 状态：state.json 增量游标 + 昵称映射 + 持仓（每轮 commit 回仓库持久化）。
@@ -22,7 +21,7 @@ DOUBAN_TARGET_USER = os.getenv("DOUBAN_TARGET_USER", "楼主昵称")
 
 HEADLESS = os.getenv("HEADLESS", "false").lower() != "false"
 
-# ============ LLM 后端（agnes 主力 + 雪球三级备用）============
+# ============ LLM 后端（agnes 主力 + Qwen 二级 + SenseNova 兜底）============
 BACKENDS = [
     {
         # ① 主力：Agnes AI 免费多模态
@@ -33,7 +32,7 @@ BACKENDS = [
         "timeout": int(os.getenv("AGNES_TIMEOUT", "120")),
     },
     {
-        # ② 备用1：NVIDIA Qwen3.5-122B-A10B（免费，10B激活，比397B更快更稳）
+        # ② 二级：NVIDIA Qwen3.5-122B-A10B（免费，10B激活，比397B更快更稳）
         "name": "nvidia-qwen3.5-122b",
         "base_url": os.getenv("PRIMARY_BASE_URL", "https://integrate.api.nvidia.com/v1"),
         "api_key": os.getenv("NVIDIA_API_KEY", ""),
@@ -41,21 +40,12 @@ BACKENDS = [
         "timeout": int(os.getenv("PRIMARY_TIMEOUT", "120")),
     },
     {
-        # ③ 备用2：NVIDIA Kimi-K2.5（免费，走 build.nvidia.com 专属 endpoint）
-        "name": "nvidia-kimi-k2.5",
-        "base_url": os.getenv("FALLBACK1_BASE_URL",
-                              "https://ai.api.nvidia.com/v1/nim/moonshotai/kimi-k2.5/v1"),
-        "api_key": os.getenv("NVIDIA_API_KEY", ""),
-        "model": os.getenv("FALLBACK1_MODEL", "moonshotai/kimi-k2.5"),
-        "timeout": int(os.getenv("FALLBACK1_TIMEOUT", "150")),
-    },
-    {
-        # ④ 最后兜底：硅基流动 Qwen3.5-35B-A3B（便宜付费）
-        "name": "siliconflow-qwen3.5-35b",
-        "base_url": os.getenv("FALLBACK2_BASE_URL", "https://api.siliconflow.cn/v1"),
-        "api_key": os.getenv("SILICONFLOW_API_KEY", ""),
-        "model": os.getenv("FALLBACK2_MODEL", "Qwen/Qwen3.5-35B-A3B"),
-        "timeout": int(os.getenv("FALLBACK2_TIMEOUT", "90")),
+        # ③ 兜底：商汤日日新 SenseNova 6.7 Flash-Lite（免费，Token Plan 限时免费）
+        "name": "sensenova-6.7-flash-lite",
+        "base_url": os.getenv("SENSENOVA_BASE_URL", "https://token.sensenova.cn/v1"),
+        "api_key": os.getenv("SENSENOVA_API_KEY", ""),
+        "model": os.getenv("SENSENOVA_MODEL", "sensenova-6.7-flash-lite"),
+        "timeout": int(os.getenv("SENSENOVA_TIMEOUT", "120")),
     },
 ]
 
