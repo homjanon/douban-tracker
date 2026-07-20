@@ -31,10 +31,10 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 ### 投资风格画像全自动增量更新
 `update_investor_profile` 复用「今日总览」内容，对 `investor_profile.json` 做增量修订：仅当有今日发言依据时才改对应维度（附 evidence），无变化的维度不返回；单次修订 > 5 维度触发熔断不回写。
 
-### LLM 三级后端链（agnes 主力 + Qwen 二级 + SenseNova 兜底）
+### LLM 三级后端链（agnes 主力 + GLM-5.2 二级 + SenseNova 兜底）
 按序尝试，首个有 key 且成功即生效：
 1. **Agnes AI** `agnes-2.0-flash`（免费，主力）
-2. NVIDIA `qwen3.5-122b-a10b`（免费，二级）
+2. NVIDIA `z-ai/glm-5.2`（免费，二级，参考 portfolio 仓调用方式）
 3. 商汤日日新 `sensenova-6.7-flash-lite`（免费，Token Plan 限时免费，兜底）
 
 ### 昵称规律固化（供 LLM 判新昵称）
