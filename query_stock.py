@@ -1,15 +1,15 @@
 """行情查询：A/港/美股 + 公募基金（多源容错链）。
 
 数据源（复用 portfolio/cmb-tracker 验证过的 proven 模式）：
-  A/港/美股 : 腾讯 qt.gtimg.cn（主）→ 新浪 hq.sinajs.cn（备）→ akshare 现货（兜底）
-  基金      : 天天基金 JSONP 直连 fundgz.1234567.com.cn（主）
+  A/港/美股/ETF : 腾讯 qt.gtimg.cn（主）→ 新浪 hq.sinajs.cn（备）→ akshare 现货（兜底）
+  基金(场外/净值型/QDII) : 天天基金 JSONP 直连 fundgz.1234567.com.cn（主）
             → 东方财富 lsjz 历史净值 api.fund.eastmoney.com（备，含 QDII 备用）
 
 设计要点：
   - 全部失败返回 None，由调用方决定回退（LLM 用 WebSearch 或标注"无数据"）。
   - 腾讯 qt.gtimg.cn 的 parts[3]=当前价，parts[32]=涨跌幅；港股加 hk 前缀。
   - 美股走腾讯 us 前缀，无需额外密钥。
-  - 基金 00 开头与深 A 股冲突，用 _KNOWN_FUNDS 显式集合优先判定。
+  - ETF（15/5xxxxx 前缀）按股票走腾讯实时行情；场外基金 00 开头与深 A 股冲突，用 _KNOWN_FUNDS 显式集合优先判定。
 """
 import re
 import requests
@@ -27,10 +27,13 @@ KNOWN_FUNDS = {
     '001532', '166001', '016372', '005698', '002891', '000906',
     '006555', '100055', '008253', '008254', '539002', '160213',
     '450010', '012920', '007540', '018984', '006227', '006328',
-    '159949', '588000',
+    '005656', '006452',   # 原靠 00 前缀兜底，前缀收窄后显式列入
 }
 
-FUND_PREFIXES = ('00', '01', '02', '11', '15', '16', '18', '50', '51', '52', '56', '58')
+# 场内 ETF 前缀（走腾讯，同 A 股实时行情，勿走基金净值接口）
+ETF_PREFIXES = ('15', '50', '51', '52', '55', '56', '58')
+# 场外/净值型公募基金前缀（含 QDII：27；LOF：16/18）
+FUND_PREFIXES = ('01', '02', '11', '16', '18', '27')
 STOCK_PREFIXES = ('60', '68', '30', '20', '90')
 
 
@@ -43,11 +46,17 @@ def _classify(code_str):
     if code_str.startswith('HK'):
         return 'hk', code_str[2:]
     if code_str.isdigit():
-        if len(code_str) == 6 and code_str[:1] in ('0', '1', '5'):
+        if len(code_str) == 6:
+            # ① 场内 ETF 优先走腾讯（实时行情，勿走基金净值接口）
+            if code_str.startswith(ETF_PREFIXES):
+                return 'a_stock', code_str
+            # ② 已知场外/净值型基金（权威清单，含 QDII/LOF）
             if code_str in KNOWN_FUNDS:
                 return 'fund', code_str
-            if code_str.startswith(STOCK_PREFIXES) or (code_str.startswith('00') and code_str[2:3] in ('0', '1', '2')):
+            # ③ 000/001/002 开头多为深市 A 股（场外基金已在前置清单捕获）
+            if code_str.startswith('00') and code_str[2:3] in ('0', '1', '2'):
                 return 'a_stock', code_str
+            # ④ 其余场外基金前缀（01/02/11/16/18/27）
             if code_str.startswith(FUND_PREFIXES):
                 return 'fund', code_str
             return 'a_stock', code_str
