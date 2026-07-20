@@ -1,14 +1,13 @@
-"""行情查询：A/港/美股 + 公募基金（多源容错链）。
+"""行情查询：A/港/美股/ETF + 公募基金。
 
-数据源（复用 portfolio/cmb-tracker 验证过的 proven 模式）：
-  A/港/美股/ETF : 腾讯 qt.gtimg.cn（主）→ 新浪 hq.sinajs.cn（备）→ akshare 现货（兜底）
+数据源（极简直查，无冗余兜底）：
+  A/港/美股/ETF : 腾讯 qt.gtimg.cn（唯一源；查询失败即返回 None，上层显示"暂无"）
   基金(场外/净值型/QDII) : 天天基金 JSONP 直连 fundgz.1234567.com.cn（主）
-            → 东方财富 lsjz 历史净值 api.fund.eastmoney.com（备，含 QDII 备用）
+                         → 东方财富 lsjz 历史净值 api.fund.eastmoney.com（备，含 QDII）
 
 设计要点：
-  - 全部失败返回 None，由调用方决定回退（LLM 用 WebSearch 或标注"无数据"）。
-  - 腾讯 qt.gtimg.cn 的 parts[3]=当前价，parts[32]=涨跌幅；港股加 hk 前缀。
-  - 美股走腾讯 us 前缀，无需额外密钥。
+  - 股票/ETF 仅走腾讯；失败返回 None，由 enrich_prices 回退为"暂无"，绝不拉全市场快照。
+  - 腾讯 qt.gtimg.cn 的 parts[3]=当前价，parts[32]=涨跌幅；港股加 hk 前缀、美股加 us 前缀。
   - ETF（15/5xxxxx 前缀）按股票走腾讯实时行情；场外基金 00 开头与深 A 股冲突，用 _KNOWN_FUNDS 显式集合优先判定。
 """
 import re
@@ -20,7 +19,6 @@ SESSION.verify = False   # 对齐本地 douban_speaker_bot 写法，规避沙盒
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 TENCENT_H = {"User-Agent": "Mozilla/5.0", "Referer": "https://gu.qq.com/"}
-SINA_H = {"User-Agent": "Mozilla/5.0", "Referer": "https://finance.sina.com.cn"}
 
 # 已知基金代码集合（00开头因与深A股冲突，需单独判断）
 KNOWN_FUNDS = {
@@ -34,7 +32,6 @@ KNOWN_FUNDS = {
 ETF_PREFIXES = ('15', '50', '51', '52', '55', '56', '58')
 # 场外/净值型公募基金前缀（含 QDII：27；LOF：16/18）
 FUND_PREFIXES = ('01', '02', '11', '16', '18', '27')
-STOCK_PREFIXES = ('60', '68', '30', '20', '90')
 
 
 def _classify(code_str):
@@ -64,6 +61,13 @@ def _classify(code_str):
             return 'hk', code_str
         return 'a_stock', code_str
     return 'a_stock', code_str
+
+
+def _tencent_prefix(code):
+    """按交易所返回腾讯行情前缀：沪市 sh / 深市 sz（含深市 ETF 15/16/18）。"""
+    if code.startswith(('60', '68', '90', '50', '51', '52', '55', '56', '58')):
+        return 'sh'
+    return 'sz'   # 00/30/20/15/16/18 等深市
 
 
 def _parse_tencent(text):
@@ -101,58 +105,6 @@ def _fetch_tencent(codes):
     except Exception as e:
         print(f"[query] 腾讯行情失败: {e}")
         return {}
-
-
-def _fetch_sina(codes):
-    """新浪行情备接口。codes: list[str] 原始6位（港股加 rt_hk 前缀）。"""
-    if not codes:
-        return {}
-    items, hk_set = [], set()
-    for c in codes:
-        if c.startswith("hk"):
-            items.append(f"rt_hk{c[2:]}")
-            hk_set.add(c)
-        else:
-            items.append(c)
-    try:
-        r = SESSION.get("https://hq.sinajs.cn/list=" + ",".join(items),
-                        headers=SINA_H, timeout=25)
-        r.encoding = "gbk"
-        res = {}
-        for line in r.text.strip().split("\n"):
-            m = re.match(r'var hq_str_(?:rt_hk)?([^=]+)="([^"]*)"', line)
-            if not m:
-                continue
-            code = m.group(1).replace("sh", "").replace("sz", "")
-            p = m.group(2).split(",")
-            idx = 6 if "rt_hk" in line else 3
-            if len(p) > idx and p[idx]:
-                try:
-                    res[code] = {"price": p[idx], "change": p[idx + 1] if len(p) > idx + 1 else "", "source": "sina"}
-                except (ValueError, IndexError):
-                    pass
-        return res
-    except Exception as e:
-        print(f"[query] 新浪行情失败: {e}")
-        return {}
-
-
-def _fetch_akshare_spot(code_str, market):
-    """akshare 现货兜底（仅 A/港股）。"""
-    try:
-        import akshare as ak
-        if market == 'hk':
-            df = ak.stock_hk_spot_em()
-            row = df[df['代码'].astype(str).str.contains(code_str)]
-        else:
-            df = ak.stock_zh_a_spot()
-            row = df[df['代码'].astype(str) == code_str]
-        if not row.empty:
-            r = row.iloc[0]
-            return {"price": r.get("最新价", ""), "change": r.get("涨跌幅", ""), "source": "akshare"}
-    except Exception as e:
-        print(f"[query] akshare 兜底失败: {e}")
-    return None
 
 
 def _fetch_fund_tiantian(code_str):
@@ -217,28 +169,22 @@ def query_stock(code):
         res = _fetch_fund_tiantian(code_str) or _fetch_fund_eastmoney(code_str)
         return res
 
-    # A/港/美股：腾讯 → 新浪 → akshare
+    # A/港/美股/ETF：仅腾讯直查；失败即返回 None（上层显示"暂无"）
     if qtype == 'hk':
-        tencent_prefix, sina_code, market = 'hk', f"hk{code_clean}", 'hk'
+        tencent_prefix = 'hk'
     elif qtype == 'us':
-        tencent_prefix, sina_code, market = 'us', code_clean, 'us'
+        tencent_prefix = 'us'
     else:
-        qc = code_str.replace('SH', '').replace('SZ', '')
-        tencent_prefix = 'sz' if qc.startswith(('00', '30', '20')) else 'sh'
-        sina_code, market = qc, 'a'
+        tencent_prefix = _tencent_prefix(code_clean)
 
     tencent_raw = f"{tencent_prefix}{code_clean}"
     t = _fetch_tencent([tencent_raw])
     if t and tencent_raw in t:
         return t[tencent_raw]
-    s = _fetch_sina([sina_code])
-    if s and sina_code in s:
-        return s[sina_code]
-    a = _fetch_akshare_spot(code_clean, market)
-    return a
+    return None
 
 
 if __name__ == "__main__":
     import json
-    for c in ["600036", "00700", "AAPL", "006227", "519195"]:
+    for c in ["600036", "00700", "AAPL", "159949", "563300", "270023", "006227"]:
         print(c, "→", json.dumps(query_stock(c), ensure_ascii=False))
