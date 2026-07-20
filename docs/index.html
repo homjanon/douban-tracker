@@ -179,19 +179,44 @@ function priceCell(s) {
   return {text: s, cls};
 }
 
-// 提及单元格：日期 MM-DD→M.D + 当日动态 + 约xx成本，返回纯文本
+// 提及日期是否超 5 天（MM-DD 或 YYYY-MM-DD）
+function _isStaleMd(mm, dd) {
+  const now = new Date();
+  const cur = (now.getMonth() + 1) * 100 + now.getDate();     // MMDD
+  const ref = mm * 100 + dd;                                   // MMDD
+  // 跨年边界粗略处理：假定同年比较，差值 > 5 天判定超期
+  let diff = (cur - ref);
+  // 若跨度跨月导致负差过大（说明 ref 在今年早些时候、已过大半），按天数近似
+  if (diff < 0) diff += 1231;   // 跨年回卷（近似，仅用于 >5 天判定）
+  // 粗略：每 100 约等于一个月，实际只需判断是否 > 5 天，直接用日差
+  const dayDiff = now.getDate() - dd;
+  const monthDiff = now.getMonth() + 1 - mm;
+  let realDiff;
+  if (monthDiff === 0) realDiff = dayDiff;
+  else if (monthDiff > 0) realDiff = monthDiff * 30 + dayDiff;  // 近似
+  else realDiff = -(monthDiff * 30) + dayDiff;
+  return realDiff > 5;
+}
+
+// 提及单元格：日期 MM-DD/YYYY-MM-DD→M.D + 当日动态 + 约xx成本，返回纯文本
 function mentionCell(first_seen, last_note, cost_price) {
   let date = '';
   if (first_seen) {
-    const m = String(first_seen).match(/(\d{1,2})-(\d{1,2})/);
-    date = m ? `${parseInt(m[1])}.${parseInt(m[2])}` : first_seen;
+    // 锚定格式：YYYY-MM-DD 或 MM-DD（整串匹配，避免从长文本误截）
+    const m = String(first_seen).match(/^(\d{4}-)?(\d{1,2})-(\d{1,2})$/);
+    if (m) {
+      const mm = parseInt(m[2]), dd = parseInt(m[3]);
+      // 超 5 天自动清空日期
+      date = _isStaleMd(mm, dd) ? '' : `${mm}.${dd}`;
+    } else {
+      date = first_seen;   // 无法解析则原样展示（兜底）
+    }
   }
   const parts = [];
   if (date) parts.push(date);
   if (last_note) parts.push(last_note);
-  if (cost_price) {
-    let cm = cost_price.match(/约([\d万.]+元?万?元?)/);
-    if (!cm) cm = cost_price.match(/(\d+-\d+元)/);
+  if (cost_price && !/暂无/.test(cost_price)) {
+    let cm = cost_price.match(/约?(\d+(?:\.\d+)?(?:\-\d+(?:\.\d+)?)?元?(?:万?元)?)/);
     if (cm) parts.push('成本约' + cm[1]);
   }
   return parts.join('；') || '暂无';

@@ -94,9 +94,9 @@ LLM 拿不准、或未触发自动回写阀门的持仓/昵称，会进入 `late
 - 或直接看 `data/latest.json` 的 `pending_positions`（数组：含 `name/code/action/evidence/price`）、`pending_nicknames`（字典）。
 
 **② 认可 → 写进 `state.json`**
-- 加持仓：在 `positions.positions` 数组追加一项（`name` 必填、`code` 有则填、`action` 填 买入/持有/卖出、`cost_price` 仅发言明确提成本才写 `约xx元` 否则 `"暂无"`、`first_seen` 用当天 `YYYY-MM-DD`）
+- 加持仓：在 `positions.positions` 数组追加一项（`name` 必填、`code` 有则填、`action` 填 买入/持有/卖出、`cost_price` 仅发言明确提成本才写 `约xx元` 否则 `"暂无"`、`first_seen` **留空**，由 Actions 下次运行自动写入当天 `MM-DD` 格式日期）
 - 加昵称：在 `nickname_map` 对象加 `"昵称": "真实标的"` 键值
-- 提交后下次运行即纳入已知数据，同名 pending 不再出现。
+- 提交后下次运行即纳入已知数据，同名 pending 不再出现；系统写入的 `first_seen` 为 `MM-DD`，提及列渲染为 `M.D`，距今天数超 5 天则自动清空日期。
 
 **③ 不认可 / 误判 → 不用管**
 `pending` 永不自动污染 `state.json`，忽略即可；反复出现的误判也不影响持仓表。

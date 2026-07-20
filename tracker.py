@@ -272,7 +272,9 @@ def apply_position_updates(st, overview, today):
                 pos_list.append({
                     "name": r["target"], "code": "", "action": "买入",
                     "category": "", "cost_price": "暂无", "market_value": "暂无",
-                    "note": r["detail"], "last_note": r["detail"], "first_seen": today,
+                    "note": r["detail"], "last_note": r["detail"],
+                    # 系统自动写入 MM-DD 格式日期（用户仅人工确认名称/代码）
+                    "first_seen": today[5:] if today else "",
                 })
                 new_count += 1
                 changes.append(f"➕ 新增持仓：{r['target']}（依据：{r['detail'][:40]}）")
@@ -348,13 +350,42 @@ def aggregate_posts(posts, nickname_map, positions):
 
 
 # ============ 报告渲染（IMA 同构 6 板块）============
+def _is_stale(first_seen):
+    """提及日期距今天数是否超过 5 天。first_seen 支持 MM-DD 或 YYYY-MM-DD。
+    无法解析（或格式异常）时返回 False（不强制清空）。"""
+    if not first_seen:
+        return False
+    s = str(first_seen).strip()
+    m = re.match(r'(?:\d{4}-)?(\d{1,2})-(\d{1,2})', s)
+    if not m:
+        return False
+    try:
+        mm, dd = int(m.group(1)), int(m.group(2))
+        today = datetime.datetime.now()
+        # 以当前年补足年份，转成年内序数比较（忽略原始年份、假定同年）
+        def _ord(mm_, dd_):
+            return (datetime.date(today.year, mm_, dd_).toordinal()
+                    if 1 <= mm_ <= 12 and 1 <= dd_ <= 31 else None)
+        a = _ord(today.month, today.day)
+        b = _ord(mm, dd)
+        if a is None or b is None:
+            return False
+        return (a - b) > 5
+    except Exception:
+        return False
+
+
 def _fmt_mention_date(d):
-    """提及日期 MM-DD → M.D（如 07-03 → 7.3，07-19 → 7.19）。"""
+    """提及日期 MM-DD 或 YYYY-MM-DD → M.D（如 07-03 → 7.3，07-19 → 7.19）。
+    超 5 天自动清空返回空串。"""
     if not d:
         return ""
     d = str(d).strip()
-    m = re.match(r'(\d{1,2})-(\d{1,2})', d)
+    # 兼容 YYYY-MM-DD 与 MM-DD
+    m = re.match(r'(?:\d{4}-)?(\d{1,2})-(\d{1,2})', d)
     if m:
+        if _is_stale(d):
+            return ""
         return f"{int(m.group(1))}.{int(m.group(2))}"
     return d
 
