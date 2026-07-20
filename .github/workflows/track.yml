@@ -90,13 +90,13 @@ jobs:
           git push
 
       - name: 打包站点产物
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: .                     # 发布整个仓库：含 docs/(看板) 与 data/(latest.json)
           retention-days: 1
 
       - name: 部署到 GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
