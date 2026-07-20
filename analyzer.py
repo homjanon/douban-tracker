@@ -1,7 +1,7 @@
-"""研判层：LLM 四级后端 + 鲁棒提取 + 中性归纳 + 持仓/昵称判断。
+"""研判层：LLM 三级后端 + 鲁棒提取 + 中性归纳 + 持仓/昵称判断。
 
-后端优先级（agnes 主力 + 雪球三级备用）：
-  agnes-2.0-flash → nvidia-qwen3.5-122b → nvidia-kimi-k2.5 → siliconflow-qwen3.5-35b
+后端优先级（agnes 主力 + GLM-5.2 二级 + SenseNova 兜底）：
+  agnes-2.0-flash → nvidia-glm-5.2 → sensenova-6.7-flash-lite
 首个有 key 且调用成功即生效；全部失败回退发言摘录。
 
 与 xueqiu-tracker 的差异：
