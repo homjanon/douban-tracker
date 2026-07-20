@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-07-19 21:09:07",
-  "last_cursor": "2026-07-1920:15:35",
+  "updated_at": "2026-07-20 09:16:25",
+  "last_cursor": "2026-07-2009:15:25",
   "nickname_map": {
     "C50": "创业板50ETF",
     "cc": "华安文体健康混合A",
@@ -59,7 +59,7 @@
         "category": "传媒",
         "cost_price": "约20-29元",
         "last_note": "",
-        "current_price": "26.60（-9.68%）"
+        "current_price": "28.50（7.14%）"
       },
       {
         "name": "引力传媒",
@@ -69,7 +69,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "15.07（-7.03%）"
+        "current_price": "15.05（-0.13%）"
       },
       {
         "name": "掌阅科技",
@@ -79,7 +79,7 @@
         "category": "传媒",
         "cost_price": "约25-30元",
         "last_note": "",
-        "current_price": "17.90（-8.21%）"
+        "current_price": "19.69（10.00%）"
       },
       {
         "name": "视觉中国",
@@ -89,7 +89,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "16.22（-6.78%）"
+        "current_price": "15.85（-2.28%）"
       },
       {
         "name": "中文在线",
@@ -99,7 +99,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "21.45（-7.94%）"
+        "current_price": "21.45（0.00%）"
       },
       {
         "name": "蓝色光标",
@@ -109,7 +109,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "12.14（-8.24%）"
+        "current_price": "12.50（2.97%）"
       },
       {
         "name": "创业板50ETF",
@@ -229,7 +229,19 @@
         "category": "红利/银行",
         "cost_price": "约30元",
         "last_note": "",
-        "current_price": "38.02（0.93%）"
+        "current_price": "38.02（0.00%）"
+      },
+      {
+        "name": "微盘股相关基金",
+        "code": "",
+        "action": "买入",
+        "category": "",
+        "cost_price": "暂无",
+        "market_value": "暂无",
+        "note": "已买入，采用每跌4%买一笔的策略，因跌幅大导致份额三倍买入，计划事后验证",
+        "last_note": "已买入，采用每跌4%买一笔的策略，因跌幅大导致份额…",
+        "first_seen": "2026-07-20",
+        "current_price": "暂无"
       }
     ]
   },
