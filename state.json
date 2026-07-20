@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-07-20 10:39:58",
-  "last_cursor": "2026-07-2010:38:22",
+  "updated_at": "2026-07-20 13:06:41",
+  "last_cursor": "2026-07-2013:03:20",
   "nickname_map": {
     "C50": "创业板50ETF",
     "cc": "华安文体健康混合A",
@@ -59,7 +59,7 @@
         "category": "传媒",
         "cost_price": "约20-29元",
         "last_note": "",
-        "current_price": "26.87（1.02%）"
+        "current_price": "27.04（1.65%）"
       },
       {
         "name": "引力传媒",
@@ -69,7 +69,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "15.26（1.26%）"
+        "current_price": "15.28（1.39%）"
       },
       {
         "name": "掌阅科技",
@@ -89,7 +89,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "16.39（1.05%）"
+        "current_price": "16.41（1.17%）"
       },
       {
         "name": "中文在线",
@@ -99,7 +99,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "21.29（-0.75%）"
+        "current_price": "21.58（0.61%）"
       },
       {
         "name": "蓝色光标",
@@ -109,7 +109,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "12.12（-0.16%）"
+        "current_price": "12.25（0.91%）"
       },
       {
         "name": "创业板50ETF",
@@ -119,7 +119,7 @@
         "category": "创业板",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "1.6390（0.32%）"
+        "current_price": "1.6541（1.24%）"
       },
       {
         "name": "华安文体健康混合",
@@ -129,7 +129,7 @@
         "category": "科技基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "5.2541（-1.07%）"
+        "current_price": "5.2854（-0.48%）"
       },
       {
         "name": "中欧新趋势混合(LOF)A",
@@ -139,7 +139,7 @@
         "category": "混合基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "1.5815（0.94%）"
+        "current_price": "1.5921（1.62%）"
       },
       {
         "name": "信澳匠心回报混合A",
@@ -149,7 +149,7 @@
         "category": "化工基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "2.1964（-3.33%）"
+        "current_price": "2.2197（-2.30%）"
       },
       {
         "name": "华夏全球科技先锋混合(QDII)A",
@@ -189,7 +189,7 @@
         "category": "美股基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "1.2998（0.01%）"
+        "current_price": "1.3019（0.17%）"
       },
       {
         "name": "富国全球科技互联网股票(QDII)A",
@@ -229,7 +229,7 @@
         "category": "红利/银行",
         "cost_price": "约30元",
         "last_note": "",
-        "current_price": "38.64（1.63%）"
+        "current_price": "38.69（1.76%）"
       },
       {
         "name": "微盘股相关基金",
