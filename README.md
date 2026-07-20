@@ -49,7 +49,7 @@ douban-tracker/
 ├── scraper.py                    # 豆瓣 HTTP+cookie 抓取（无 Playwright/WAF），当日全量
 ├── analyzer.py                   # LLM 研判：归纳 / 持仓昵称 / 今日总览（6 子板块）
 ├── tracker.py                    # 主流程：抓→研判→持仓回写/提纯→6 板块渲染→写 latest.json/reports
-├── query_stock.py                # 股价多源查询（腾讯/天天基金为主，复用查询现价）
+├── query_stock.py                # 股价查询：股票/ETF 走腾讯直查，基金走天天基金/东方财富，失败回退「暂无」
 ├── nickname_rules.py/.json       # 昵称命名规律（5 类，判新昵称用）
 ├── investor_profile.json         # 楼主投资风格画像（7 维度，自动增量更新）
 ├── state.json                    # nickname_map + positions(19) + _seen_ids(去重累计)
