@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-23 18:38:39",
+  "updated_at": "2026-07-24 18:32:20",
   "last_cursor": "2026-07-2311:03:22",
   "nickname_map": {
     "C50": "创业板50ETF",
@@ -59,7 +59,7 @@
         "category": "传媒",
         "cost_price": "约20-29元",
         "last_note": "",
-        "current_price": "26.61（0.42%）"
+        "current_price": "25.20（-5.30%）"
       },
       {
         "name": "引力传媒",
@@ -69,7 +69,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "15.19（2.01%）"
+        "current_price": "14.62（-3.75%）"
       },
       {
         "name": "掌阅科技",
@@ -79,7 +79,7 @@
         "category": "传媒",
         "cost_price": "约25-30元",
         "last_note": "持有，虽有单子但未卖出，观察四连板松动情况",
-        "current_price": "18.87（-0.21%）"
+        "current_price": "17.92（-5.03%）"
       },
       {
         "name": "视觉中国",
@@ -89,7 +89,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "16.26（0.37%）"
+        "current_price": "15.50（-4.67%）"
       },
       {
         "name": "中文在线",
@@ -99,7 +99,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "19.91（-2.83%）"
+        "current_price": "18.51（-7.03%）"
       },
       {
         "name": "蓝色光标",
@@ -109,7 +109,7 @@
         "category": "传媒",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "11.95（-0.25%）"
+        "current_price": "11.21（-6.19%）"
       },
       {
         "name": "创业板50ETF",
@@ -119,7 +119,7 @@
         "category": "创业板",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "1.712（0.53%）"
+        "current_price": "1.668（-2.57%）"
       },
       {
         "name": "华安文体健康混合",
@@ -129,7 +129,7 @@
         "category": "科技基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "5.3440（-2.69%）"
+        "current_price": "5.3440（0.00%）"
       },
       {
         "name": "中欧新趋势混合(LOF)A",
@@ -139,7 +139,7 @@
         "category": "混合基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "1.6420（-0.50%）"
+        "current_price": "1.6490（0.43%）"
       },
       {
         "name": "信澳匠心回报混合A",
@@ -149,7 +149,7 @@
         "category": "化工基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "2.2590（-3.09%）"
+        "current_price": "2.2220（-1.64%）"
       },
       {
         "name": "华夏全球科技先锋混合(QDII)A",
@@ -159,7 +159,7 @@
         "category": "美股基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "2.9094（-1.89%）"
+        "current_price": "2.8739（-1.22%）"
       },
       {
         "name": "华夏移动互联混合(QDII)",
@@ -169,7 +169,7 @@
         "category": "美股基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "2.7510（-0.54%）"
+        "current_price": "2.7270（-0.87%）"
       },
       {
         "name": "广发全球精选股票(QDII)A",
@@ -179,7 +179,7 @@
         "category": "美股基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "6.4399（5.27%）"
+        "current_price": "6.4324（-0.12%）"
       },
       {
         "name": "浦银安盛全球智能科技(QDII)A",
@@ -189,7 +189,7 @@
         "category": "美股基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "1.3086（-0.11%）"
+        "current_price": "1.3086（0.00%）"
       },
       {
         "name": "富国全球科技互联网股票(QDII)A",
@@ -199,7 +199,7 @@
         "category": "美股基金",
         "cost_price": "约10万元",
         "last_note": "",
-        "current_price": "1.0825（0.08%）"
+        "current_price": "1.0821（-0.04%）"
       },
       {
         "name": "华宝致远混合(QDII)C",
@@ -209,7 +209,7 @@
         "category": "美股基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "1.8503（-0.38%）"
+        "current_price": "1.8382（-0.65%）"
       },
       {
         "name": "建信新兴市场混合(QDII)A",
@@ -219,7 +219,7 @@
         "category": "含海力士基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "2.4170（6.85%）"
+        "current_price": "2.4270（0.41%）"
       },
       {
         "name": "招商银行",
@@ -229,7 +229,7 @@
         "category": "红利/银行",
         "cost_price": "约30元",
         "last_note": "提及35元附近买入机会，认可其日线“超级V”形态及…",
-        "current_price": "38.91（0.52%）"
+        "current_price": "39.20（0.75%）"
       },
       {
         "name": "2000ETF",
@@ -241,7 +241,7 @@
         "note": "已买入，采用每跌4%买一笔的策略，因跌幅大导致份额三倍买入，计划事后验证",
         "last_note": "指出横盘走势，未触发加仓条件，继续观察",
         "first_seen": "07-20",
-        "current_price": "1.299（1.88%）"
+        "current_price": "1.256（-3.31%）"
       }
     ]
   },
