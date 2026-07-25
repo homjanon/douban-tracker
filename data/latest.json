@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-07-24 18:32:20",
+  "fetched_at": "2026-07-25 18:06:17",
   "user": {
     "name": "不知道还能说啥",
     "count": 0
@@ -96,7 +96,7 @@
         "category": "科技基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "5.3440（0.00%）"
+        "current_price": "5.1940（-2.81%）"
       },
       {
         "name": "中欧新趋势混合(LOF)A",
@@ -106,7 +106,7 @@
         "category": "混合基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "1.6490（0.43%）"
+        "current_price": "1.6062（-2.60%）"
       },
       {
         "name": "信澳匠心回报混合A",
@@ -116,7 +116,7 @@
         "category": "化工基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "2.2220（-1.64%）"
+        "current_price": "2.2330（0.50%）"
       },
       {
         "name": "华夏全球科技先锋混合(QDII)A",
@@ -146,7 +146,7 @@
         "category": "美股基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "6.4324（-0.12%）"
+        "current_price": "6.3974（-0.54%）"
       },
       {
         "name": "浦银安盛全球智能科技(QDII)A",
@@ -156,7 +156,7 @@
         "category": "美股基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "1.3086（0.00%）"
+        "current_price": "1.3046（-0.31%）"
       },
       {
         "name": "富国全球科技互联网股票(QDII)A",
@@ -166,7 +166,7 @@
         "category": "美股基金",
         "cost_price": "约10万元",
         "last_note": "",
-        "current_price": "1.0821（-0.04%）"
+        "current_price": "1.0823（0.02%）"
       },
       {
         "name": "华宝致远混合(QDII)C",
@@ -186,7 +186,7 @@
         "category": "含海力士基金",
         "cost_price": "暂无",
         "last_note": "",
-        "current_price": "2.4270（0.41%）"
+        "current_price": "2.4480（0.87%）"
       },
       {
         "name": "招商银行",
