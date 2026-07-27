@@ -44,7 +44,7 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 | ② | ? 今日总览 | LLM 单次调用产出 5 子板块 | 市场背景/今日操作/今日议题/看好方向/风险提示 |
 | ③ | ? 本次结果 | 运行时统计 | 今日发言数 + 累计存档数 |
 | ④ | ? 发言聚合 | 当日发言按标签聚类（>50 条做聚合，否则逐条） | 子板块 + 占比 |
-| ⑤ | ? 投资风格分析 | `investor_profile.json`（7 维度 + 综合评估） | 表格 + 段落 |
+| ⑤ | ? 投资风格分析 | `investor_profile.json`（4 维度 + 综合评估） | 表格 + 段落 |
 | ⑥ | ?? 昵称映射表 | `nickname_rules.json`（规则）+ `state.json`（映射） | 规则三列表格 + 映射表 |
 
 ## 关键设计
@@ -83,7 +83,7 @@ douban-tracker/
 ├── tracker.py                    # 主流程：抓→去重→研判→写 latest.json/reports
 ├── query_stock.py                # 股价查询：股票/ETF 腾讯主、基金天天基金主
 ├── nickname_rules.py/.json       # 昵称命名规则（5 类，判断昵称用）
-├── investor_profile.json         # 楼主投资风格画像（7 维度，自动增量更新）
+├── investor_profile.json         # 楼主投资风格画像（4 维度，自动增量更新）
 ├── state.json                    # nickname_map + positions(19) + _seen_ids（去重游标）
 ├── data/latest.json              # 每日产物（Pages 读取）
 ├── docs/index.html               # Pages 看板（6 板块卡片，持仓 5 列 + 涨跌颜色）

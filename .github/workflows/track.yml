@@ -75,11 +75,11 @@ jobs:
               print("❌ state.json.positions 非列表，拦截推送"); sys.exit(1)
           if len(pos) == 0:
               print("❌ 持仓被清空，疑似自动回写异常，拦截推送"); sys.exit(1)
-          # investor_profile.json 回写后仍含 7 维度
+          # investor_profile.json 回写后仍含 4 维度
           prof = json.load(open('investor_profile.json', encoding='utf-8'))
           dims = prof.get('profile', {})
-          if len(dims) < 5:
-              print("❌ 投资风格画像维度异常(<5)，拦截推送"); sys.exit(1)
+          if len(dims) < 4:
+              print("❌ 投资风格画像维度异常(<4)，拦截推送"); sys.exit(1)
           print(f"✅ 自动回写校验通过：持仓 {len(pos)} 项 / 画像 {len(dims)} 维度")
           PY
 

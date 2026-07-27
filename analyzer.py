@@ -268,7 +268,8 @@ def update_investor_profile(overview, posts, today):
 
     阀门：LLM 只返回『确有今日发言依据』的维度修订（含 evidence）；
           无变化/无依据的维度不返回。返回空表示本次不改动。
-    安全阀：单次修订维度 > 5 个 → 不回写、返回告知熔断。
+    安全阀：已移除数量熔断，接受全部有依据（dimension+new_text+evidence 齐备）的更新；
+    仅对现有维度回写，避免 schema 漂移（不新增/不删除维度）。
     成功回写 investor_profile.json（profile 覆盖 + evolution 追加 + last_updated 更新）。
     返回 [(变更描述)] 供审计。
     """
@@ -301,16 +302,22 @@ def update_investor_profile(overview, posts, today):
     except Exception:
         return []
     updates = data.get("updates", []) or []
-    # 过滤：必须含 new_text 且 evidence
+    # 现有维度集合（锁定 schema：仅回写已有维度，防止 LLM 把维度膨胀回去）
+    try:
+        with open(_PROFILE_FILE, encoding="utf-8") as _f:
+            _prof = json.load(_f)
+        _existing = set(_prof.get("profile", {}).keys())
+    except Exception:
+        _existing = set()
+    # 过滤：必须含 dimension(须为现有维度) + new_text + evidence
     valid = [u for u in updates
-             if isinstance(u, dict) and u.get("dimension") and u.get("new_text") and u.get("evidence")]
-
-    if len(valid) > 5:
-        print(f"[画像更新] ⚠️ 单次修订 {len(valid)} 维度 > 5，触发熔断，不回写")
-        return [f"🚫 熔断：拟改 {len(valid)} 维度 > 5，未回写"]
+             if isinstance(u, dict) and u.get("dimension") in _existing
+             and u.get("new_text") and u.get("evidence")]
 
     if not valid:
         return []
+
+    print(f"[画像更新] ✅ 接受 {len(valid)} 条有依据更新（无数量熔断）")
 
     # 回写 investor_profile.json
     try:
