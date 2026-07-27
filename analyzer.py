@@ -192,18 +192,17 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions, image_contex
 
 # ============ 今日总览（单次 LLM 调用产出 6 子板块）============
 def build_daily_overview(posts, nickname_map, positions, image_context=""):
-    """从当日发言一次性提取「今日总览」7 子板块，避免多次调用浪费 token。
+    """从当日发言一次性提取「今日总览」5 子板块，避免多次调用浪费 token。
 
     返回 dict：
-      market_background / core_views / today_actions / discussion_topics /
-      key_quotes / favored_sectors / risk_warnings
+      market_background / today_actions / discussion_topics /
+      favored_sectors / risk_warnings
     image_context：图片识别文字（可选），拼接进研判上下文。
     无发言或调用失败则返回各字段空字符串。
     """
     if not posts:
-        return {k: "" for k in ("market_background", "core_views", "today_actions",
-                                "discussion_topics", "key_quotes", "favored_sectors",
-                                "risk_warnings")}
+        return {k: "" for k in ("market_background", "today_actions",
+                                "discussion_topics", "favored_sectors", "risk_warnings")}
     hint = USER_HINTS.get("default", "")
     rules = rules_to_text()
     profile = load_investor_profile()
@@ -216,20 +215,18 @@ def build_daily_overview(posts, nickname_map, positions, image_context=""):
     system = ("你是财经编辑+实战分析师，依据楼主当日发言，产出结构化的「今日总览」。"
               "务必使用下方昵称映射与规律正确解码黑话；结合楼主投资风格画像理解其操作意图。"
               "各字段独立成文、事实导向、不编造；"
-              "discussion_topics 与 key_quotes 必须基于发言原文提炼，不得无中生有。"
+              "discussion_topics 必须基于发言原文提炼，不得无中生有。"
               + ("\n\n黑话/昵称提示（已确认映射，权威）：\n" + hint if hint else "")
               + ("\n\n" + rules if rules else "")
               + ("\n\n楼主投资风格画像：\n" + profile if profile else "")
               + ("\n\n" + INVALID_HINTS if INVALID_HINTS else ""))
     user = (f"现有持仓：\n{pos_lines}\n\n现有昵称映射：\n{nick_lines}\n\n"
             f"今日发言：\n{text_blob}\n\n"
-            f"请输出 JSON（7 个字段，均为字符串，可含 Markdown 列表/表格）：\n"
+            f"请输出 JSON（5 个字段，均为字符串，可含 Markdown 列表/表格）：\n"
             f'{{'
             f'"market_background": "市场背景（宏观/指数/情绪一段概述）",'
-            f'"core_views": "楼主核心观点（无序列表 - **关键词**——阐述）",'
             f'"today_actions": "今日操作（Markdown 表格：| 操作 | 标的 | 详情 |，操作列用 ✅/⏭️/❌ 标注）",'
-            f'"discussion_topics": "今日议题（Markdown 表格：| 议题 | 态度 | 核心观点 | 关键引用 |；态度用 📈看多/📉看空/➡️中性/💬讨论 标注；关键引用为发言原话≤25字）",'
-            f'"key_quotes": "关键引用（Markdown 列表：- 📈/📉/➡️ **标的**：\"原话\"（时间），萃取当日3-5条最有信息量的原话，每条附语境）",'
+            f'"discussion_topics": "今日议题（Markdown 表格：| 议题 | 态度 | 核心观点 | 关键引用 |；态度用 📈看多/📉看空/➡️中性/💬讨论 标注；核心观点为楼主对该议题的看法一句话；关键引用为1-2条发言原话，每条≤25字）",'
             f'"favored_sectors": "看好板块/方向（无序列表 - **板块**：理由）",'
             f'"risk_warnings": "风险提示（无序列表 - 「原文」——解读）"'
             f'}}\n'
@@ -239,17 +236,16 @@ def build_daily_overview(posts, nickname_map, positions, image_context=""):
     out = call_multi([{"role": "system", "content": system},
                       {"role": "user", "content": user}])
     if not out:
-        return {k: "" for k in ("market_background", "core_views", "today_actions",
-                                "discussion_topics", "key_quotes", "favored_sectors",
-                                "risk_warnings")}
+        return {k: "" for k in ("market_background", "today_actions",
+                                "discussion_topics", "favored_sectors", "risk_warnings")}
     raw = _extract_text(out)
     try:
         m = re.search(r'\{.*\}', raw, flags=re.DOTALL)
         data = json.loads(m.group(0)) if m else {}
     except Exception:
         data = {}
-    keys = ("market_background", "core_views", "today_actions",
-            "discussion_topics", "key_quotes", "favored_sectors", "risk_warnings")
+    keys = ("market_background", "today_actions",
+            "discussion_topics", "favored_sectors", "risk_warnings")
     return {k: _to_text(data.get(k, "")) for k in keys}
 
 def _to_text(v):

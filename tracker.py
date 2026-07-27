@@ -441,15 +441,11 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
     L.append("> ⚠️ 执行任务时如发现新操作，请更新 `state.json` 的 `positions`。成本价和市值有数据才填，没有则保留「暂无」。")
     L.append("")
 
-    # ② 今日总览（7 子板块）
+    # ② 今日总览（5 子板块）
     L.append("## 🌅 今日总览")
     if overview.get("market_background"):
         L.append("### 📌 市场背景")
         L.append(overview["market_background"])
-        L.append("")
-    if overview.get("core_views"):
-        L.append("### 📌 楼主核心观点")
-        L.append(overview["core_views"])
         L.append("")
     if overview.get("today_actions"):
         L.append("### 📌 今日操作")
@@ -458,10 +454,6 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
     if overview.get("discussion_topics"):
         L.append("### 📌 今日议题")
         L.append(overview["discussion_topics"])
-        L.append("")
-    if overview.get("key_quotes"):
-        L.append("### 📌 关键引用")
-        L.append(overview["key_quotes"])
         L.append("")
     if overview.get("favored_sectors"):
         L.append("### 📌 看好板块/方向")
@@ -629,7 +621,7 @@ def main():
         "total_archived": st["total_archived"],
         "showing_fallback": showing_fallback,
         "daily_summary": summary,
-        "overview": overview,                       # 今日总览 7 子板块
+        "overview": overview,                       # 今日总览 5 子板块
         "positions": st["positions"],              # 持仓追踪（已动态更新）
         "investor_profile": load_investor_profile(),  # 投资风格分析（已增量更新）
         "nickname_rules": load_nickname_rules(),      # 昵称规律（结构化列表）
