@@ -34,7 +34,9 @@ jobs:
         env:
           DOUBAN_COOKIE: ${{ secrets.DOUBAN_COOKIE }}
           DOUBAN_GROUP_URLS: ${{ secrets.DOUBAN_GROUP_URLS }}
+          DOUBAN_USER_STATUSES_URL: ${{ secrets.DOUBAN_USER_STATUSES_URL }}
           DOUBAN_TARGET_USER: ${{ secrets.DOUBAN_TARGET_USER }}
+          SCRAPE_MODE: ${{ secrets.SCRAPE_MODE }}
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           SENSENOVA_API_KEY: ${{ secrets.SENSENOVA_API_KEY }}
