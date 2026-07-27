@@ -194,12 +194,12 @@ _COST_PATTERNS = [
 
 
 def parse_cost_mentions(overview):
-    """从今日操作/持仓动态表格的『详情/关键动态』列抽取「明确成本价表述」。
+    """从今日操作表格的『详情/关键动态』列抽取「明确成本价表述」。
     返回 [(target_text, cost_str)]，仅围栏明确提及价格的行（阀门：无数字价格不要）。
     """
     found = []
     raw = (overview or {})
-    for key in ("today_actions", "position_dynamics"):
+    for key in ("today_actions",):
         blob = raw.get(key, "") or ""
         if not blob:
             continue
@@ -211,7 +211,7 @@ def parse_cost_mentions(overview):
             cells = [c.strip() for c in line.strip("|").split("|")]
             if len(cells) < 2:
                 continue
-            # 操作表：列=[操作, 标的, 详情]；持仓动态表：列=[标的, 今日表现, 关键动态]
+            # 操作表：列=[操作, 标的, 详情]
             target = cells[1] if key == "today_actions" else cells[0]
             detail = cells[-1]  # 详情 / 关键动态 列
             for pat in _COST_PATTERNS:
@@ -441,7 +441,7 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
     L.append("> ⚠️ 执行任务时如发现新操作，请更新 `state.json` 的 `positions`。成本价和市值有数据才填，没有则保留「暂无」。")
     L.append("")
 
-    # ② 今日总览（6 子板块）
+    # ② 今日总览（7 子板块）
     L.append("## 🌅 今日总览")
     if overview.get("market_background"):
         L.append("### 📌 市场背景")
@@ -455,9 +455,13 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
         L.append("### 📌 今日操作")
         L.append(overview["today_actions"])
         L.append("")
-    if overview.get("position_dynamics"):
-        L.append("### 📌 持仓动态")
-        L.append(overview["position_dynamics"])
+    if overview.get("discussion_topics"):
+        L.append("### 📌 今日议题")
+        L.append(overview["discussion_topics"])
+        L.append("")
+    if overview.get("key_quotes"):
+        L.append("### 📌 关键引用")
+        L.append(overview["key_quotes"])
         L.append("")
     if overview.get("favored_sectors"):
         L.append("### 📌 看好板块/方向")
@@ -576,16 +580,7 @@ def main():
     summary = daily_summary({"name": name, "posts": display})
     print(f"[归纳] {summary}")
     analysis = analyze_positions_and_nicknames(display, st["nickname_map"], st["positions"])
-    # 先查价，让持仓动态获得真实涨跌幅数据（enrich_prices 对无 code 的标的静默降级）
-    enrich_prices(st["positions"])
-    # 构造实时价格摘要给 LLM，确保 position_dynamics「今日表现」列基于真实数据
-    price_lines = []
-    for p in st["positions"]["positions"]:
-        cp = p.get("current_price", "暂无")
-        code = p.get("code", "")
-        price_lines.append(f"  {p['name']}({code}): {cp}")
-    price_context = "\n".join(price_lines) if price_lines else ""
-    overview = build_daily_overview(display, st["nickname_map"], st["positions"], price_context=price_context)
+    overview = build_daily_overview(display, st["nickname_map"], st["positions"])
     # 查价：对研判出的标的补实时价格
     for p in analysis["new_positions"]:
         if p.get("code"):
@@ -634,7 +629,7 @@ def main():
         "total_archived": st["total_archived"],
         "showing_fallback": showing_fallback,
         "daily_summary": summary,
-        "overview": overview,                       # 今日总览 6 子板块
+        "overview": overview,                       # 今日总览 7 子板块
         "positions": st["positions"],              # 持仓追踪（已动态更新）
         "investor_profile": load_investor_profile(),  # 投资风格分析（已增量更新）
         "nickname_rules": load_nickname_rules(),      # 昵称规律（结构化列表）
