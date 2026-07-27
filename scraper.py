@@ -13,13 +13,17 @@ import datetime
 import requests
 from bs4 import BeautifulSoup
 
-from config import DOUBAN_COOKIE, DOUBAN_GROUP_URLS, DOUBAN_TARGET_USER, PAGES
+from config import (DOUBAN_COOKIE, DOUBAN_GROUP_URLS, DOUBAN_TARGET_USER,
+                    DOUBAN_USER_STATUSES_URL, SCRAPE_MODE, PAGES)
 
 _UAS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15',
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/119.0.0.0 Safari/537.36',
 ]
+# 新模式拉取豆瓣话题评论所需移动端 UA（rexxar API 校验）
+_MOBILE_UA = ('Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) '
+              'AppleWebKit/605.1.15 Mobile/15E148')
 SESSION = requests.Session()
 SESSION.trust_env = False
 
@@ -196,20 +200,118 @@ def normalize(posts):
     return uniq
 
 
+def find_latest_topic(statuses_url, target_user):
+    """主页广播页定位最新一条广播(豆瓣话题)，返回话题信息字典。
+
+    主页 statuses 页里的"广播"实为豆瓣话题(topic)动态：每条带 data-aid(话题id)
+    与 data-uid(作者uid)。取第一条 status-item 的话题链接即可。
+    """
+    r = http_get(statuses_url, cookie=DOUBAN_COOKIE)
+    if not hasattr(r, 'status_code') or r.status_code != 200 or '/statuses/' not in r.text:
+        print(f"  ⚠️ 广播页不可达: {getattr(r,'status_code','ERR')} / sec风控={ 'sec.douban.com' in getattr(r,'url','') }")
+        return None
+    soup = BeautifulSoup(r.text, 'lxml')
+    item = soup.find('div', class_='status-wrapper') or soup.find('div', class_='status-item')
+    if not item:
+        print("  ❌ 未解析到任何广播")
+        return None
+    aid = item.get('data-aid', '')
+    uid = item.get('data-uid', '')
+    title_a = item.find('a', href=re.compile(r'/topic/\d+'))
+    title = title_a.get_text(strip=True) if title_a else ""
+    if not aid and title_a:
+        m = re.search(r'/topic/(\d+)', title_a.get('href', ''))
+        aid = m.group(1) if m else ''
+    if not aid:
+        print("  ❌ 未解析到话题 id")
+        return None
+    return {'aid': aid, 'uid': uid, 'title': title,
+            'url': f"https://www.douban.com/topic/{aid}/"}
+
+
+def fetch_topic_comments(topic, target_user):
+    """调 rexxar API 拉全部评论，按作者 uid 过滤(即只看作者)，返回发言字典列表。
+
+    豆瓣话题的回应是 AJAX 动态加载，静态 HTML 无 reply-doc；真实接口为
+    m.douban.com/rexxar/api/v2/group/topic/{aid}/comments。接口的 user_id/only_author
+    参数服务端不生效，需客户端按作者 uid 过滤。
+    """
+    aid = topic['aid']
+    uid = topic.get('uid', '')
+    api = f"https://m.douban.com/rexxar/api/v2/group/topic/{aid}/comments"
+    H = {'User-Agent': _MOBILE_UA, 'Cookie': DOUBAN_COOKIE,
+         'Referer': f"https://m.douban.com/topic/{aid}/", 'Accept': 'application/json'}
+    posts, start = [], 0
+    while True:
+        rr = SESSION.get(api, params={'start': start, 'count': 100,
+                           'status': 'open', 'order_by': 'create_time'},
+                           headers=H, timeout=20, verify=False)
+        if rr.status_code != 200 or 'json' not in rr.headers.get('content-type', ''):
+            print(f"  ⚠️ API {rr.status_code} / sec风控={ 'sec.douban.com' in getattr(rr,'url','') }")
+            break
+        cm = rr.json().get('comments') or []
+        if not cm:
+            break
+        for c in cm:
+            a = c.get('author', {})
+            if a.get('uid') != uid and a.get('name') != target_user:
+                continue  # 只看作者
+            ct = c.get('create_time', '')
+            txt = (c.get('text') or c.get('content') or '').strip()
+            photos = c.get('photos') or []
+            if photos:
+                for p in photos:
+                    u = (p.get('image', {}) or {}).get('large') or (p.get('image', {}) or {}).get('normal') or {}
+                    u = u.get('url', '') if isinstance(u, dict) else ''
+                    if u:
+                        txt += f"\n\n![图片]({u})"
+            ref = c.get('ref_comment') or c.get('quote')
+            quote = ""
+            if isinstance(ref, dict) and ref.get('text'):
+                quote = f"（引用 @{ref.get('author', {}).get('name', '')}）{ref.get('text', '')[:120]}"
+            tm = re.search(r'\d{2}:\d{2}(?::\d{2})?', ct)
+            st = (tm.group() if tm else ct[:8])
+            if len(st) == 5:
+                st += ':00'
+            posts.append({'id': str(c.get('id', '')), 'author': target_user,
+                          'content': txt, 'time': ct, 'sortable_time': st,
+                          'quote': quote, 'date': ct[:10]})
+        if len(cm) < 100:
+            break
+        start += 100
+    posts.sort(key=lambda p: p['date'] + p['sortable_time'])
+    return posts
+
+
 def scrape_user():
-    """抓取目标楼主发言（多组支持，合并去重）。返回标准化 post 列表。"""
-    today = datetime.datetime.now().strftime('%Y-%m-%d')
-    all_posts = []
-    for gu in DOUBAN_GROUP_URLS:
-        print(f"\n=== 小组 {gu} ===")
-        latest = find_latest_post(gu, DOUBAN_TARGET_USER)
+    """抓取目标楼主发言，按 SCRAPE_MODE 分派：
+       - topic（默认）：用户主页广播(豆瓣话题) → 最新一条广播 → 只看作者(按uid过滤)
+       - group：原小组话题模式（保留，切回时启用）
+    返回标准化 post 列表。
+    """
+    if SCRAPE_MODE == "group":
+        # —— 旧模式（原逻辑整段保留，仅当切回时运行）——
+        today = datetime.datetime.now().strftime('%Y-%m-%d')
+        all_posts = []
+        for gu in DOUBAN_GROUP_URLS:
+            print(f"\n=== 小组 {gu} ===")
+            latest = find_latest_post(gu, DOUBAN_TARGET_USER)
+            if not latest:
+                continue
+            print(f"  最新帖: {latest['title']} (tid={latest['tid']}, 楼主确认={latest['author_confirmed']})")
+            posts = fetch_posts(latest['url'], DOUBAN_TARGET_USER)
+            print(f"  [抓取] 去重后 {len(posts)} 条")
+            all_posts.extend(posts)
+        # 方案 A：严格只保留"当天"发言（末两页可能混入历史发言，此处按日期过滤）
+        day_posts = [p for p in all_posts if p.get('date') == today]
+        print(f"  [当日过滤] 仅留 {today} 发言：{len(day_posts)} 条（丢弃历史 {len(all_posts)-len(day_posts)} 条）")
+        return normalize(day_posts)
+    else:
+        # —— 新模式（豆瓣话题 + 只看作者）：每次取最新一条广播的全部发言 ——
+        latest = find_latest_topic(DOUBAN_USER_STATUSES_URL, DOUBAN_TARGET_USER)
         if not latest:
-            continue
-        print(f"  最新帖: {latest['title']} (tid={latest['tid']}, 楼主确认={latest['author_confirmed']})")
-        posts = fetch_posts(latest['url'], DOUBAN_TARGET_USER)
-        print(f"  [抓取] 去重后 {len(posts)} 条")
-        all_posts.extend(posts)
-    # 方案 A：严格只保留"当天"发言（末两页可能混入历史发言，此处按日期过滤）
-    day_posts = [p for p in all_posts if p.get('date') == today]
-    print(f"  [当日过滤] 仅留 {today} 发言：{len(day_posts)} 条（丢弃历史 {len(all_posts)-len(day_posts)} 条）")
-    return normalize(day_posts)
+            return []
+        print(f"  最新话题: {latest['title']} (#{latest['aid']}, 作者uid={latest['uid']})")
+        posts = fetch_topic_comments(latest, DOUBAN_TARGET_USER)
+        print(f"  [抓取] 作者发言 {len(posts)} 条（该最新广播全部，不限当日）")
+        return normalize(posts)

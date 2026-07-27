@@ -11,7 +11,7 @@ import os
 import re
 
 from config import (DATA_DIR, REPORT_DIR, STATE_FILE, RECENT_N,
-                    AGGREGATE_THRESHOLD, USER_HINTS)
+                    AGGREGATE_THRESHOLD, USER_HINTS, SCRAPE_MODE)
 from scraper import scrape_user
 from analyzer import (daily_summary, analyze_positions_and_nicknames,
                       build_daily_overview, load_investor_profile,
@@ -428,7 +428,8 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
     L = [f"# 📋 楼主每日发言推送",
          "",
          f"> **推送日期**：{ts[:10]} ｜ **执行时间**：{ts} ｜ **监控用户**：`{name}`",
-         f"> **所在小组**：{os.getenv('DOUBAN_GROUP_URLS', '豆瓣小组').split(',')[0].split('/')[-2] if os.getenv('DOUBAN_GROUP_URLS') else '豆瓣小组'}",
+         f"> **追踪模式**：`{SCRAPE_MODE}`"
+         f"（{'用户主页广播·豆瓣话题' if SCRAPE_MODE == 'topic' else '小组话题'}）",
          ""]
 
     # ① 持仓追踪
@@ -473,8 +474,9 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
     L.append(f"- **累计存档**：{total_archived} 条")
     L.append("")
 
-    # ④ 今日发言聚合
-    L.append(f"## 📝 今日发言聚合（共 {today_count} 条）")
+    # ④ 发言聚合（新模式抓该最新广播全部发言，旧模式抓当日）
+    agg_title = "今日发言聚合" if SCRAPE_MODE == "group" else "该最新广播作者发言聚合"
+    L.append(f"## 📝 {agg_title}（共 {today_count} 条）")
     if today_count > AGGREGATE_THRESHOLD:
         for label, g, pct in aggregate_posts(posts, {}, {"positions": []}):
             tr = (g["times"][0] if g["times"] else "")

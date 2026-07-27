@@ -12,12 +12,16 @@ import os
 
 # ============ 豆瓣抓取配置 ============
 DOUBAN_COOKIE = os.getenv("DOUBAN_COOKIE", "")
-# 追踪的豆瓣话题组 URL（楼主发言所在组），逗号分隔支持多组
+# 旧模式（可切回）：小组 URL 列表，逗号分隔支持多组；当前新模式开启，可留空
 DOUBAN_GROUP_URLS = [x.strip() for x in
-                     os.getenv("DOUBAN_GROUP_URLS",
-                               "https://www.douban.com/group/your-group/").split(",") if x.strip()]
-# 目标楼主昵称（用于过滤发言）
+                     os.getenv("DOUBAN_GROUP_URLS", "").split(",") if x.strip()]
+# 新模式（默认）：用户主页广播页（楼主现改为在本人主页发广播/话题）
+DOUBAN_USER_STATUSES_URL = os.getenv("DOUBAN_USER_STATUSES_URL",
+                                       "https://www.douban.com/people/295613619/statuses").strip()
+# 目标楼主昵称（两种模式共用，用于过滤发言）
 DOUBAN_TARGET_USER = os.getenv("DOUBAN_TARGET_USER", "楼主昵称")
+# 模式切换：topic=用户广播(默认,开启) / group=小组话题(切回,开启)
+SCRAPE_MODE = os.getenv("SCRAPE_MODE", "topic").strip().lower()
 
 HEADLESS = os.getenv("HEADLESS", "false").lower() != "false"
 
