@@ -10,8 +10,6 @@ import json
 import os
 import re
 
-import requests
-
 from config import (DATA_DIR, REPORT_DIR, STATE_FILE, RECENT_N,
                     AGGREGATE_THRESHOLD, USER_HINTS, SCRAPE_MODE)
 from scraper import scrape_user
@@ -83,88 +81,6 @@ def enrich_prices(positions):
             results[p["name"]] = "暂无"
     for p in pos_list:
         p["current_price"] = results.get(p["name"], "暂无")
-
-
-# ============ 发言图片下载（方案B：绕过豆瓣防盗链，入库同源加载）============
-def _download_image(url, img_dir, cookie=""):
-    """下载单张图片到 img_dir，返回本地相对路径（data/images/xxx.jpg）或 None。"""
-    import hashlib
-    try:
-        os.makedirs(img_dir, exist_ok=True)
-        ext = ".jpg"
-        m = re.search(r"\.([a-zA-Z0-9]+)(?:\?|$)", url)
-        if m:
-            ext = "." + m.group(1).lower()[:4]
-        fname = hashlib.md5(url.encode()).hexdigest() + ext
-        fpath = os.path.join(img_dir, fname)
-        # 已存在且非空则跳过下载（幂等，避免重复请求）
-        if os.path.exists(fpath) and os.path.getsize(fpath) > 1024:
-            return f"data/images/{fname}"
-        headers = {
-            "Referer": "https://www.douban.com/",
-            "User-Agent": "Mozilla/5.0",
-        }
-        if cookie:
-            headers["Cookie"] = cookie
-        r = requests.get(url, headers=headers, timeout=20)
-        if r.status_code != 200 or len(r.content) < 1024:
-            print(f"[图片下载] 跳过（HTTP {r.status_code}, {len(r.content)}B）: {url[:50]}")
-            return None
-        with open(fpath, "wb") as f:
-            f.write(r.content)
-        return f"data/images/{fname}"
-    except Exception as e:
-        print(f"[图片下载] 失败: {url[:50]} → {e}")
-        return None
-
-
-def download_post_images(posts, data_dir):
-    """遍历发言中的 ![图片](url)，下载到 data/images/ 并原地改写为本地路径。
-    返回改写条数。下载失败保留原 URL（前端退化为链接文字）。
-    """
-    cookie = os.getenv("DOUBAN_COOKIE", "")
-    img_dir = os.path.join(data_dir, "images")
-    count = 0
-    cache = {}
-    for p in posts:
-        content = p.get("content", "")
-        if "![图片]" not in content:
-            continue
-
-        def _repl(m):
-            url = m.group(1)
-            if url in cache:
-                return f"![图片]({cache[url]})"
-            local = _download_image(url, img_dir, cookie)
-            if local:
-                cache[url] = local
-                return f"![图片]({local})"
-            return m.group(0)
-
-        new_content = re.sub(r"!\[图片\]\((.*?)\)", _repl, content)
-        if new_content != content:
-            p["content"] = new_content
-            count += 1
-    return count
-
-
-def cleanup_old_images(data_dir, keep_days=3):
-    """删除 data/images 中修改时间超过 keep_days 天的文件（仅保留近 N 天）。"""
-    import time
-    img_dir = os.path.join(data_dir, "images")
-    if not os.path.isdir(img_dir):
-        return 0
-    cutoff = time.time() - keep_days * 86400
-    removed = 0
-    for f in os.listdir(img_dir):
-        fp = os.path.join(img_dir, f)
-        if os.path.isfile(fp) and os.path.getmtime(fp) < cutoff:
-            try:
-                os.remove(fp)
-                removed += 1
-            except Exception:
-                pass
-    return removed
 
 
 # ============ 持仓字段提纯（防 LLM 写长文本，让提及列格式统一）============
@@ -651,11 +567,6 @@ def main():
     display = posts
     showing_fallback = (len(display) == 0) and bool(posts)
 
-    # 2.5 发言图片下载（方案B：绕过豆瓣防盗链，入库同源加载）
-    img_n = download_post_images(display, DATA_DIR)
-    if img_n:
-        print(f"[图片] 已下载/引用 {img_n} 张到 data/images/")
-
     # 3. 研判（纯文本，无图片识别）
     name = os.getenv("DOUBAN_TARGET_USER", "楼主")
     summary = daily_summary({"name": name, "posts": display})
@@ -736,11 +647,6 @@ def main():
         st["last_cursor"] = max((p.get("date", "") + p.get("sortable_time", "") for p in display))
     st["updated_at"] = ts
     save_state(st)
-
-    # 9.5 清理超过 3 天的旧图片（仅保留近 3 天，控制仓库体积）
-    removed = cleanup_old_images(DATA_DIR, keep_days=3)
-    if removed:
-        print(f"[图片] 清理 {removed} 张超过 3 天的旧图片")
 
     print(f"[完成] data/latest.json(6板块) + reports/{now.strftime('%Y-%m-%d')}.md 已生成；"
           f"昵称→{len(st['nickname_map'])} 持仓→{len(st['positions']['positions'])}"

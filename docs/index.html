@@ -26,6 +26,8 @@
         background: #fafafa; padding: 10px; border-radius: 4px; }
   .post { border-top: 1px solid #eee; padding: 10px 0; line-height: 1.5; }
   .post .t { color: #999; font-size: 12px; }
+  .post-img { max-width: 100%; height: auto; margin: 8px 0; border-radius: 4px;
+              border: 1px solid #eee; display: block; }
   .empty { color: #999; font-style: italic; }
   .fallback { background: #fff7e6; border-left: 4px solid #faad14; padding: 8px 12px; border-radius: 4px; }
   .toolbar { margin: 0 0 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -99,7 +101,7 @@ function render(d) {
   if (!posts.length) h += '<div class="empty">今日无发言</div>';
   posts.forEach(p => {
     h += '<div class="post"><span class="t">' + esc(p.time || '') + '</span><br>'
-       + esc(p.content || '').replace(/\n/g, '<br>')
+       + mdText(p.content || '')
        + (p.quote ? '<br><span class="t">⊳ ' + esc(p.quote) + '</span>' : '') + '</div>';
   });
   h += '</div>';
@@ -244,6 +246,21 @@ function mdTable(s) {
   if (!rows.length) return '<pre>' + esc(s) + '</pre>';
   return table(rows);
 }
+// 把发言文本中的 ![图片](url) 转为 <img>，其余转义+换行
+function mdText(s) {
+  if (!s) return '';
+  const parts = s.split(/(!\[图片\]\([^)]+\))/g);
+  return parts.map(part => {
+    const m = part.match(/^!\[图片\]\(([^)]+)\)$/);
+    if (m) {
+      let src = m[1];
+      if (src.indexOf('data/images/') === 0) src = '../' + src;
+      return '<img src="' + esc(src) + '" class="post-img" referrerpolicy="no-referrer" loading="lazy">';
+    }
+    return esc(part).replace(/\n/g, '<br>');
+  }).join('');
+}
+
 function esc(s) {
   return (s == null ? '' : String(s)).replace(/[&<>"]/g,
     c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
