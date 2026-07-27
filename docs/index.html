@@ -80,8 +80,8 @@ function render(d) {
   const ov = d.overview || {};
   if (Object.values(ov).some(v => v)) {
     h += '<h2>🌅 今日总览</h2><div class="card">';
-    const secs = [['market_background','📌 市场背景'],['core_views','📌 楼主核心观点'],
-                  ['today_actions','📌 今日操作'],['position_dynamics','📌 持仓动态'],
+    const secs = [['market_background','📌 市场背景'],['today_actions','📌 今日操作'],
+                  ['discussion_topics','📌 今日议题'],
                   ['favored_sectors','📌 看好板块/方向'],['risk_warnings','📌 风险提示']];
     secs.forEach(([k, t]) => {
       if (ov[k]) {
