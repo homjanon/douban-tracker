@@ -191,13 +191,14 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions, image_contex
 
 
 # ============ 今日总览（单次 LLM 调用产出 6 子板块）============
-def build_daily_overview(posts, nickname_map, positions, image_context=""):
+def build_daily_overview(posts, nickname_map, positions, image_context="", price_context=""):
     """从当日发言一次性提取「今日总览」6 子板块，避免多次调用浪费 token。
 
     返回 dict：
       market_background / core_views / today_actions / position_dynamics /
       favored_sectors / risk_warnings
     image_context：图片识别文字（可选），拼接进研判上下文。
+    price_context：实时价格摘要（可选），供 position_dynamics「今日表现」列使用。
     无发言或调用失败则返回各字段空字符串。
     """
     if not posts:
@@ -209,12 +210,14 @@ def build_daily_overview(posts, nickname_map, positions, image_context=""):
     text_blob = "\n".join(f"- {p.get('content', '')}" for p in posts[:40])
     if image_context:
         text_blob += "\n\n【图片识别内容（来自楼主当日图片）】\n" + image_context
+    if price_context:
+        text_blob += "\n\n【实时价格参考——请严格基于此数据填写 position_dynamics 的「今日表现」列，不得编造】\n" + price_context
     nick_lines = "\n".join(f"  {k} = {v}" for k, v in nickname_map.items()) or "（空）"
     pos_lines = "\n".join(f"  {p.get('name','?')}" for p in positions.get("positions", [])) or "（空）"
 
     system = ("你是财经编辑+实战分析师，依据楼主当日发言，产出结构化的「今日总览」。"
               "务必使用下方昵称映射与规律正确解码黑话；结合楼主投资风格画像理解其操作意图。"
-              "各字段独立成文、事实导向、不编造；行情数字无依据则留空。"
+              "各字段独立成文、事实导向、不编造；**position_dynamics 的「今日表现」列必须基于下方【实时价格参考】中的涨跌幅数据，不得使用模型自身知识编造**。"
               + ("\n\n黑话/昵称提示（已确认映射，权威）：\n" + hint if hint else "")
               + ("\n\n" + rules if rules else "")
               + ("\n\n楼主投资风格画像：\n" + profile if profile else "")

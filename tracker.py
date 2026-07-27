@@ -576,7 +576,16 @@ def main():
     summary = daily_summary({"name": name, "posts": display})
     print(f"[归纳] {summary}")
     analysis = analyze_positions_and_nicknames(display, st["nickname_map"], st["positions"])
-    overview = build_daily_overview(display, st["nickname_map"], st["positions"])
+    # 先查价，让持仓动态获得真实涨跌幅数据（enrich_prices 对无 code 的标的静默降级）
+    enrich_prices(st["positions"])
+    # 构造实时价格摘要给 LLM，确保 position_dynamics「今日表现」列基于真实数据
+    price_lines = []
+    for p in st["positions"]["positions"]:
+        cp = p.get("current_price", "暂无")
+        code = p.get("code", "")
+        price_lines.append(f"  {p['name']}({code}): {cp}")
+    price_context = "\n".join(price_lines) if price_lines else ""
+    overview = build_daily_overview(display, st["nickname_map"], st["positions"], price_context=price_context)
     # 查价：对研判出的标的补实时价格
     for p in analysis["new_positions"]:
         if p.get("code"):
