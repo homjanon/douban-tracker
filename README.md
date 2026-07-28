@@ -40,7 +40,7 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 
 | # | 板块 | 数据来源 | 呈现方式 |
 |---|------|---------|---------|
-| ① | ? 持仓追踪 | `state.json` 的 `positions`（19 项权益持仓） | 5 列 Markdown/HTML 表格（标的/状态/类型/现价/提及） |
+| ① | ? 持仓追踪 | `state.json` 的 `positions`（权益持仓） | 5 列 Markdown/HTML 表格（标的/状态/类型/现价/提及） |
 | ② | ? 今日总览 | LLM 单次调用产出 5 子板块 | 市场背景/今日操作/今日议题/看好方向/风险提示 |
 | ③ | ? 本次结果 | 运行时统计 | 今日发言数 + 累计存档数 |
 | ④ | ? 发言聚合 | 当日发言按标签聚类（>50 条做聚合，否则逐条） | 子板块 + 占比 |
@@ -52,7 +52,7 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 ### 持仓自动回写（带严格阀门）
 `apply_position_updates` 复用「今日操作」板块，按 emoji 自动维护 `state.json` 的持仓：
 - ? 买入/加仓 → 新增或更新；?? 持有 → 仅更新动态；? 卖出 → 第一天标"卖出"保留痕迹、次日确认卖出再移出
-- **阀门**：仅当发言命中已知持仓/昵称或符合代码格式才允许新增（拒绝"观察策略"等策略词）；单次新增 > 5 条触发熔断不回写
+- **阀门**：仅当发言命中已知持仓/昵称或符合代码格式才允许新增（拒绝"观察策略"等策略词）
 - **成本阈值**：仅当发言明确提及价格且持仓原值为"暂无"时才写入，不编造、不覆盖已有值
 - **字段提纯**：每次运行对 `cost_price` / `last_note` 自动归一（成本 → `约xx元`/`约xx-x元`/`约x万元`；动态 → 截断/清空分析腔）
 
@@ -84,7 +84,7 @@ douban-tracker/
 ├── query_stock.py                # 股价查询：股票/ETF 腾讯主、基金天天基金主
 ├── nickname_rules.py/.json       # 昵称命名规则（5 类，判断昵称用）
 ├── investor_profile.json         # 楼主投资风格画像（4 维度，自动增量更新）
-├── state.json                    # nickname_map + positions(19) + _seen_ids（去重游标）
+├── state.json                    # nickname_map + positions（权益持仓列表） + _seen_ids（去重游标）
 ├── data/latest.json              # 每日产物（Pages 读取）
 ├── docs/index.html               # Pages 看板（6 板块卡片，持仓 5 列 + 涨跌颜色）
 └── reports/YYYY-MM-DD.md         # 每日简报
@@ -125,7 +125,7 @@ LLM 拿不准、或未触达自动回写阀门的持仓/昵称，会进入 `late
 
 **① 去哪看**
 - Pages 看板底部黄色提示框「?? 以下为 LLM 建议……」，分「持仓建议」「新昵称映射建议」「新昵称规律建议」三类，每条附「依据」。
-- 或直接看 `data/latest.json` 的 `pending_positions`（数组：name/code/action/evidence/price）、`pending_nicknames`（字典）。
+- 或直接看 `data/latest.json` 的 `pending_positions`（数组：name/code/action/evidence/price）、`pending_nicknames`（字典）、`pending_rules`（数组：type/rule/examples/evidence，昵称规律建议）。
 
 **② 认可 → 写入 `state.json`**
 - 加持仓：在 `positions.positions` 数组追加一项（`name` 必填、`code` 有则填、`action` 填 买入/持有/卖出、`cost_price` 仅发言明确提及价才写 `约xx元` 否则 `"暂无"`、`first_seen` **留空**，由 Actions 下次运行自动写入当天 `MM-DD` 格式日期）。
