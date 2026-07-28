@@ -1,7 +1,7 @@
 """研判层：LLM 三级后端 + 鲁棒提取 + 中性归纳 + 持仓/昵称判断。
 
-后端优先级（agnes 主力 + GLM-5.2 二级 + SenseNova 兜底）：
-  agnes-2.0-flash → nvidia-glm-5.2 → sensenova-6.7-flash-lite
+后端优先级（DeepSeek-V4-Flash 主力 + Agnes 二级 + GLM-5.2 兜底）：
+  deepseek-v4-flash → agnes-2.0-flash → nvidia-glm-5.2
 首个有 key 且调用成功即生效；全部失败回退发言摘录。
 
 与 xueqiu-tracker 的差异：
@@ -131,17 +131,18 @@ def daily_summary(user_info):
 
 # ============ 持仓 / 昵称研判（补回雪球已删的逻辑）============
 def analyze_positions_and_nicknames(posts, nickname_map, positions, image_context=""):
-    """扫描今日发言，研判持仓变动 + 新昵称映射。
+    """扫描今日发言，研判持仓变动 + 新昵称映射 + 新昵称规律。
 
-    遵循宽松原则（源自 douban_speaker_bot.py 提示词规则）：
-      - 持仓：有买入/持有迹象（明说买了、加仓、有底仓、不舍得卖、多次提及+关注）即可入表；
-        纯分析/看戏不入表。拿不准时宁可信其有。
+    遵循宽松规则（源自 douban_speaker_bot.py 提示词规则）：
+      - 持仓：有买入/加仓/持有对象（明说买了、加仓、有底仓、不舍得卖、多次提及+关注）即可入库；
+        纯分析/看戏不入库。拿不准时宁可信其有。
       - 昵称：推断合理（70%+ 把握）即写入；完全无法推断则跳过。
+    映射与规律均【仅建议】，不自动写回 state / nickname_rules，由用户人工确认。
     image_context：图片识别文字（可选），拼接进研判上下文。
-    返回 {new_positions: [...], new_nicknames: {nick: target}, mentions: {stock: count}}
+    返回 {new_positions: [...], new_nicknames: {nick: target}, new_rules: [...], mentions: {stock: count}}
     """
     if not posts:
-        return {"new_positions": [], "new_nicknames": {}, "mentions": {}}
+        return {"new_positions": [], "new_nicknames": {}, "new_rules": [], "mentions": {}}
     hint = USER_HINTS.get("default", "")
     rules = rules_to_text()
     profile = load_investor_profile()
@@ -152,12 +153,12 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions, image_contex
     pos_lines = "\n".join(f"  {p.get('name','?')}" for p in positions.get("positions", [])) or "（空）"
 
     system = ("你是A股/港股/美股/基金实战分析师，擅长从口语化发言中识别真实持仓与昵称映射。"
-              "你有实时查价能力，判断比死规则更准。遵循宽松原则："
-              "① 持仓——有买入/持有迹象（明说买了、加仓、有底仓、不舍得卖、多次提及且表达关注）即可入表；"
-              "纯分析/看戏（如『这股不错』『可以关注』）不入表；拿不准宁可信其有。"
+              "你有实时查价能力，判断比普通人更准。遵循宽松原则："
+              "① 持仓——有买入/加仓/持有对象（明说买了、加仓、有底仓、不舍得卖、多次提及且表达关注）即可入库；"
+              "纯分析/看戏（如'这股不错''可以关注'）不入库，拿不准宁可信其有。"
               "② 昵称——先按下方【命名规律】推断，再用【已确认映射】校验；两侧冲突以映射为准；"
               "合理（70%+把握）即映射，无法推断跳过。"
-              "发现错误用户会后续指正，无需过度谨慎。"
+              "发现错误用户会后续指正，无需过度自责。"
               + ("\n\n黑话/昵称提示（已确认映射，权威）：\n" + hint if hint else "")
               + ("\n\n" + rules if rules else "")
               + ("\n\n楼主投资风格画像（判断其操作意图时务必参考，避免误判）：\n" + profile if profile else "")
@@ -165,30 +166,30 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions, image_contex
     user = (f"现有昵称映射：\n{nick_lines}\n\n现有持仓：\n{pos_lines}\n\n"
             f"今日发言：\n{text_blob}\n\n"
             f"请输出 JSON：\n"
-            f"{{"
+            f'{{'
             f'"new_positions": [{{"name":"标的名","code":"代码(可空)","action":"买入/加仓/持有/观察","evidence":"原话依据"}}],'
             f'"new_nicknames": {{"昵称":"真实标的或基金经理"}},'
+            f'"new_rules": [{{"type":"规律类别","rule":"规律描述","examples":"示例","evidence":"今日发言依据"}}],'
             f'"mentions": {{"标的名": 提及次数}}'
-            f"}}\n"
+            f'}}\n'
             f"只输出 JSON，不要解释。无新增则对应数组/对象为空。")
 
     out = call_multi([{"role": "system", "content": system},
                       {"role": "user", "content": user}])
     if not out:
-        return {"new_positions": [], "new_nicknames": {}, "mentions": {}}
+        return {"new_positions": [], "new_nicknames": {}, "new_rules": [], "mentions": {}}
     raw = _extract_text(out)
     try:
-        # 宽容：可能包了 ```json 围栏
         m = re.search(r'\{.*\}', raw, flags=re.DOTALL)
         data = json.loads(m.group(0)) if m else {}
     except Exception:
-        return {"new_positions": [], "new_nicknames": {}, "mentions": {}}
+        return {"new_positions": [], "new_nicknames": {}, "new_rules": [], "mentions": {}}
     return {
         "new_positions": data.get("new_positions", []) or [],
         "new_nicknames": data.get("new_nicknames", {}) or {},
+        "new_rules": data.get("new_rules", []) or [],
         "mentions": data.get("mentions", {}) or {},
     }
-
 
 # ============ 今日总览（单次 LLM 调用产出 6 子板块）============
 def build_daily_overview(posts, nickname_map, positions, image_context=""):

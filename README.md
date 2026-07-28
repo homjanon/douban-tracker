@@ -61,11 +61,11 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 ### 投资风格画像全自动增量更新
 `update_investor_profile` 复用「今日总览」内容，对 `investor_profile.json` 做增量修订：仅当今日发言确有新依据时才修订对应维度，无变化不强行重写；单维度修订建议 ≤150 字。
 
-### LLM 三级后端（agnes 主力 + GLM-5.2 二级 + SenseNova 兜底）
+### LLM 三级后端（DeepSeek-V4-Flash 主力 + Agnes 二级 + GLM-5.2 兜底）
 按顺序尝试，首个有 key 且成功即生效：
-1. **Agnes AI** `agnes-2.0-flash`（免费多模态，主力）
-2. NVIDIA `z-ai/glm-5.2`（免费，二级，参考 portfolio 仓调用方式）
-3. 商汤日日新 `sensenova-6.7-flash-lite`（免费，Token Plan 限时免费，兜底）
+1. **商汤 DeepSeek-V4-Flash** `deepseek-v4-flash`（复用 `SENSENOVA_API_KEY`，商汤平台，主力，参考 portfolio 仓调用方式）
+2. **Agnes AI** `agnes-2.0-flash`（免费多模态，二级）
+3. NVIDIA `z-ai/glm-5.2`（免费，兜底，参考 portfolio 仓调用方式）
 
 ### 昵称规则固化（供 LLM 判断昵称）
 `nickname_rules.py` / `nickname_rules.json` 将 47 条持仓映射反推出 **5 类命名规则**（拼音首字母 / 小名代指 / 绰号黑话 / 谐音取名 / 机构基金昵称），注入 LLM 提示。LLM 先按规则推断新昵称，再用 `config.USER_HINTS` 的确认映射校验，冲突以映射为准。
@@ -99,9 +99,9 @@ douban-tracker/
 | `DOUBAN_GROUP_URLS` | 追踪的豆瓣小组 URL，逗号分隔（group 模式；topic 模式可留空） |
 | `DOUBAN_TARGET_USER` | 楼主昵称（两种模式共用，用于过滤发言） |
 | `SCRAPE_MODE` | `topic`（默认/开启）或 `group`（切回旧模式） |
-| `AGNES_API_KEY` | Agnes 主力后端 key |
-| `NVIDIA_API_KEY` | 二级后端 key（glm-5.2） |
-| `SENSENOVA_API_KEY` | 兜底后端 key（SenseNova 6.7 Flash-Lite） |
+| `AGNES_API_KEY` | 二级后端 key（agnes-2.0-flash） |
+| `NVIDIA_API_KEY` | 兜底后端 key（glm-5.2） |
+| `SENSENOVA_API_KEY` | 主力后端 key（DeepSeek-V4-Flash，商汤平台） |
 
 ## 本地调试
 
@@ -124,7 +124,7 @@ python tracker.py
 LLM 拿不准、或未触达自动回写阀门的持仓/昵称，会进入 `latest.json` 的 `pending_positions` / `pending_nicknames`（**仅建议、绝不自动写库**），需你在 `state.json` 人工拍板后提交才生效。
 
 **① 去哪看**
-- Pages 看板底部黄色提示框「?? 以下为 LLM 建议……」，分「持仓建议」「新昵称映射建议」两类，每条附「依据」。
+- Pages 看板底部黄色提示框「?? 以下为 LLM 建议……」，分「持仓建议」「新昵称映射建议」「新昵称规律建议」三类，每条附「依据」。
 - 或直接看 `data/latest.json` 的 `pending_positions`（数组：name/code/action/evidence/price）、`pending_nicknames`（字典）。
 
 **② 认可 → 写入 `state.json`**

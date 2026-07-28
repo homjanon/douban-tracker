@@ -332,20 +332,29 @@ def _apply_cost_mentions(st, overview, today):
 
 
 def apply_position_updates(st, overview, today):
-    """依据今日操作表更新 state.positions。返回 [(变更描述)] 供审计。
-    阀门：
-      ✅ 买入/加仓 → 无则新增、有则更新 action/last_note
-      ⏭️ 持有   → 仅更新 last_note，不增删
-      ❌ 卖出   → 第一天标 action=卖出(保留痕迹)；第二天 detect 仍为卖出且无回购 → 移出
-    阈值熔断：单次新增 > 5 条 → 不回写，返回 (changes, blocked=True)
+    """依据今日操作表更新 state.positions。返回 (changes, blocked) 供审计。
+
+    状态机（date-driven，对齐人工心智）：
+      ✅ 买入/加仓：
+         - 无记录            → 新建（action=买入, first_seen=今日）
+         - 有记录且今日建仓  → 维持 买入（展示"今日买入"）
+         - 有记录且历史建仓  → 自动转 持有（first_seen≠今日）
+      ⏭️ 持有：仅更新 last_note；若此前被标 卖出 → 恢复 持有（撤销卖出/移出）
+      ❌ 卖出：
+         - 首次命中 → 标 action=卖出 且记 sell_date=今日（保留痕迹）
+         - 次日仍无 买入/持有 回购信号 → 自动移出（不依赖 LLM 重发卖出）
+
+    说明：原 new_count>5 熔断为"假回滚"（pos_list 是 st 引用，变更已就地写入），
+          现予移除——输入受今日操作表行数天然限制，且每条新增过 _is_valid_stock_target 校验。
     """
     rows = parse_today_actions(overview)
     positions = st.setdefault("positions", {"positions": []})
     pos_list = positions["positions"]
     nickname_map = st.get("nickname_map", {})
     changes = []
-    new_count = 0
+    today_md = today[5:] if today else ""   # MM-DD
 
+    # —— 阶段一：处理 买入/持有/卖出 信号（先打标，不在此阶段移出）——
     for r in rows:
         idx = _match_position(positions, r["target"], nickname_map)
         if r["action"] == "买入":
@@ -357,45 +366,65 @@ def apply_position_updates(st, overview, today):
                     "name": r["target"], "code": "", "action": "买入",
                     "category": "", "cost_price": "暂无", "market_value": "暂无",
                     "note": r["detail"], "last_note": r["detail"],
-                    # 系统自动写入 MM-DD 格式日期（用户仅人工确认名称/代码）
-                    "first_seen": today[5:] if today else "",
+                    "first_seen": today_md,
                 })
-                new_count += 1
                 changes.append(f"➕ 新增持仓：{r['target']}（依据：{r['detail'][:40]}）")
             else:
-                pos_list[idx]["action"] = "买入"
-                pos_list[idx]["last_note"] = r["detail"]
-                changes.append(f"🔄 更新买入：{pos_list[idx]['name']}")
+                p = pos_list[idx]
+                if p.get("first_seen") == today_md:
+                    p["action"] = "买入"
+                    p["last_note"] = r["detail"]
+                    changes.append(f"🔄 更新买入（今日建仓）：{p['name']}")
+                else:
+                    p["action"] = "持有"
+                    p["last_note"] = r["detail"]
+                    changes.append(f"🔄 转入持有（历史建仓）：{p['name']}")
         elif r["action"] == "卖出":
             if idx is not None:
-                if pos_list[idx].get("action") == "卖出":
-                    # 第二天：正式移出
-                    removed = pos_list.pop(idx)
-                    changes.append(f"➖ 移出持仓（次日确认卖出）：{removed['name']}")
+                p = pos_list[idx]
+                if p.get("action") == "卖出":
+                    p["last_note"] = r["detail"]
+                    changes.append(f"⚠️ 再次确认卖出（待移出）：{p['name']}")
                 else:
-                    pos_list[idx]["action"] = "卖出"
-                    pos_list[idx]["last_note"] = r["detail"]
-                    changes.append(f"⚠️ 标记卖出（待次日移出）：{pos_list[idx]['name']}")
+                    p["action"] = "卖出"
+                    p["sell_date"] = today_md
+                    p["last_note"] = r["detail"]
+                    changes.append(f"⚠️ 标记卖出（待次日移出）：{p['name']}")
             # 若 state 无此标的，卖出信号无对应持仓，忽略
         elif r["action"] == "持有":
             if idx is not None:
-                pos_list[idx]["last_note"] = r["detail"]
-                # 若此前标记卖出但今日又现持有信号，恢复为持有
-                if pos_list[idx].get("action") == "卖出":
-                    pos_list[idx]["action"] = "持有"
-                    changes.append(f"♻️ 恢复持有（卖出信号撤销）：{pos_list[idx]['name']}")
+                p = pos_list[idx]
+                p["last_note"] = r["detail"]
+                if p.get("action") == "卖出":
+                    p["action"] = "持有"
+                    p.pop("sell_date", None)
+                    changes.append(f"♻️ 恢复持有（卖出信号撤销）：{p['name']}")
+
+    # —— 阶段二：卖出次日自动移出（不依赖 LLM 重发卖出）——
+    # 仅对"无今日回购信号"且 sell_date≠今日 的 卖出 条目移出
+    buyback_idx = set()
+    for r in rows:
+        if r["action"] in ("买入", "持有"):
+            i = _match_position(positions, r["target"], nickname_map)
+            if i is not None:
+                buyback_idx.add(i)
+    survivors = []
+    for i, p in enumerate(pos_list):
+        if p.get("action") == "卖出" and p.get("sell_date") and p["sell_date"] != today_md:
+            if i in buyback_idx:
+                survivors.append(p)   # 今日有回购信号，阶段一已恢复为持有
+                continue
+            changes.append(f"➖ 移出持仓（卖出次日自动移出）：{p['name']}")
+        else:
+            survivors.append(p)
+    pos_list[:] = survivors
 
     # 成本价明确提及自动填充（仅绑定已命中持仓标的、仅当原值缺失）
     cost_changes, _ = _apply_cost_mentions(st, overview, today)
     for c in cost_changes:
         changes.append(c)
 
-    # 阈值熔断
-    if new_count > 5:
-        print(f"[持仓更新] ⚠️ 单次新增 {new_count} 条 > 5，触发熔断，回滚本次持仓变更")
-        return changes, True
     return changes, False
-
 
 # ============ 发言聚合（>阈值按标的聚类）============
 def aggregate_posts(posts, nickname_map, positions):
@@ -597,8 +626,7 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
     L.append("")
 
     # 待确认建议区（LLM 产出，不自动写 state）
-    L.append("> ⚠️ 以下为 LLM **建议**，未自动写入状态文件。请人工确认后，"
-             "本地编辑 `state.json` 的 `nickname_map` / `positions` 并 push 生效。")
+    L.append("> ⚠️ 以下为 LLM **建议**，未自动写入状态文件。请人工确认后，本地编辑 `state.json` 的 `nickname_map` / `positions`，或 `nickname_rules.json` 的 `rules` 并 push 生效。")
     L.append("")
     if analysis.get("new_positions"):
         L.append("## 持仓建议（待你确认）")
@@ -610,6 +638,11 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
         L.append("## 新昵称映射建议（待你确认）")
         for k, v in analysis["new_nicknames"].items():
             L.append(f"- `{k}` = {v}")
+        L.append("")
+    if analysis.get("new_rules"):
+        L.append("## 新昵称规律建议（待你确认）")
+        for r in analysis["new_rules"]:
+            L.append(f"- 【{r.get('type','?')}】{r.get('rule','')} ｜示例：{r.get('examples','')} ｜依据：{r.get('evidence','')}")
         L.append("")
 
     L.append(f"\n*🤖 自动生成于 {ts} ｜ 豆瓣楼主发言追踪*")
@@ -717,6 +750,7 @@ def main():
         "nickname_map": st["nickname_map"],           # 已收录映射
         "pending_positions": analysis["new_positions"],    # 待确认（LLM 研判辅助参考）
         "pending_nicknames": analysis["new_nicknames"],    # 待确认
+        "pending_rules": analysis["new_rules"],            # 待确认（昵称规律建议）
         "applied_position_changes": [] if pos_blocked else pos_changes,  # 本次自动持仓变更（审计）
         "applied_profile_update": prof_changes,      # 本次自动画像变更（审计）
         "mentions": analysis["mentions"],
