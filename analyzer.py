@@ -234,20 +234,31 @@ def build_daily_overview(posts, nickname_map, positions, image_context=""):
             f"只输出 JSON，不要解释。每个字段的值必须是**字符串**（即便是列表也请写成 Markdown 文本，不要输出 JSON 数组）；"
             f"无内容字段给空字符串。")
 
-    out = call_multi([{"role": "system", "content": system},
-                      {"role": "user", "content": user}])
-    if not out:
-        return {k: "" for k in ("market_background", "today_actions",
-                                "discussion_topics", "favored_sectors", "risk_warnings")}
-    raw = _extract_text(out)
-    try:
-        m = re.search(r'\{.*\}', raw, flags=re.DOTALL)
-        data = json.loads(m.group(0)) if m else {}
-    except Exception:
-        data = {}
+    messages = [{"role": "system", "content": system},
+                {"role": "user", "content": user}]
     keys = ("market_background", "today_actions",
             "discussion_topics", "favored_sectors", "risk_warnings")
-    return {k: _to_text(data.get(k, "")) for k in keys}
+    _empty_ov = {k: "" for k in keys}
+
+    def _parse_overview(out):
+        """把 LLM 输出解析为 5 子板块 dict；空响应返回 _empty_ov。"""
+        if not out:
+            return _empty_ov
+        raw = _extract_text(out)
+        try:
+            m = re.search(r'\{.*\}', raw, flags=re.DOTALL)
+            data = json.loads(m.group(0)) if m else {}
+        except Exception:
+            data = {}
+        return {k: _to_text(data.get(k, "")) for k in keys}
+
+    result = _parse_overview(call_multi(messages))
+    # 空值校验 + 自动重试：若 5 子板块全空（LLM 偶发返回空 JSON），
+    # 再调一次 call_multi（每次从头遍历 BACKENDS，自动尝试二级/兜底后端）。
+    if posts and all(not result[k].strip() for k in keys):
+        print("[analyzer] ⚠️ 今日总览 5 子板块全空，重试一次（走二级/兜底后端）")
+        result = _parse_overview(call_multi(messages))
+    return result
 
 def _to_text(v):
     """把 LLM 返回的任意类型安全转成文本（兼容 list/dict/数字/None）。"""

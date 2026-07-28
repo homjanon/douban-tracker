@@ -556,25 +556,19 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
 
     # ② 今日总览（5 子板块）
     L.append("## 🌅 今日总览")
-    if overview.get("market_background"):
-        L.append("### 📌 市场背景")
-        L.append(overview["market_background"])
-        L.append("")
-    if overview.get("today_actions"):
-        L.append("### 📌 今日操作")
-        L.append(overview["today_actions"])
-        L.append("")
-    if overview.get("discussion_topics"):
-        L.append("### 📌 今日议题")
-        L.append(overview["discussion_topics"])
-        L.append("")
-    if overview.get("favored_sectors"):
-        L.append("### 📌 看好板块/方向")
-        L.append(overview["favored_sectors"])
-        L.append("")
-    if overview.get("risk_warnings"):
-        L.append("### 📌 风险提示")
-        L.append(overview["risk_warnings"])
+    # 渲染兜底：无论是否有内容都输出小节标题；为空时给占位提示，
+    # 避免 LLM 空响应导致"整段消失"被误判为漏跑（latest.json 仍保留空值便于人工识别）。
+    _ov_titles = [
+        ("market_background", "### 📌 市场背景"),
+        ("today_actions", "### 📌 今日操作"),
+        ("discussion_topics", "### 📌 今日议题"),
+        ("favored_sectors", "### 📌 看好板块/方向"),
+        ("risk_warnings", "### 📌 风险提示"),
+    ]
+    for _key, _title in _ov_titles:
+        L.append(_title)
+        _val = (overview.get(_key) or "").strip()
+        L.append(_val if _val else "（本次 LLM 未产出，建议重跑）")
         L.append("")
 
     # ③ 本次结果
