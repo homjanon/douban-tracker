@@ -255,18 +255,6 @@
         "last_note": "以40.2元买入少量仓位",
         "first_seen": "07-27",
         "current_price": "48.03（-1.98%）"
-      },
-      {
-        "name": "格力电器",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "40.2元少量买入，防御补充",
-        "last_note": "少量买入",
-        "first_seen": "07-27",
-        "current_price": "暂无"
       }
     ]
   },
