@@ -241,8 +241,10 @@ def fetch_topic_comments(topic, target_user):
     api = f"https://m.douban.com/rexxar/api/v2/group/topic/{aid}/comments"
     H = {'User-Agent': _MOBILE_UA, 'Cookie': DOUBAN_COOKIE,
          'Referer': f"https://m.douban.com/topic/{aid}/", 'Accept': 'application/json'}
-    posts, start = [], 0
-    while True:
+    posts, start, pages = [], 0, 0
+    MAX_PAGES = 200  # 安全上限：防止接口异常导致死循环
+    while pages < MAX_PAGES:
+        pages += 1
         rr = SESSION.get(api, params={'start': start, 'count': 100,
                            'status': 'open', 'order_by': 'create_time'},
                            headers=H, timeout=20, verify=False)
@@ -276,9 +278,7 @@ def fetch_topic_comments(topic, target_user):
             posts.append({'id': str(c.get('id', '')), 'author': target_user,
                           'content': txt, 'time': ct, 'sortable_time': st,
                           'quote': quote, 'date': ct[:10]})
-        if len(cm) < 100:
-            break
-        start += 100
+        start += len(cm)  # 按接口实际返回量推进翻页（count 可能被截断）
     posts.sort(key=lambda p: p['date'] + p['sortable_time'])
     return posts
 
