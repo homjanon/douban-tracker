@@ -120,6 +120,7 @@ python tracker.py
 - 时区：所有时间均为北京时间（UTC+8）。
 - Pages 看板右上角「? 手动触发更新」按钮跳转 Actions 页面，点 Run workflow 即可即时运行（免密钥、安全）。
 - **cookie 安全**：`DOUBAN_COOKIE` 为登录凭证，仅注入私仓 Secrets，勿提交；建议定期「设置 → 退出其他设备」轮换。
+- **看板实时性**：`docs/index.html` 拉取 `data/latest.json` 时带 `cache: 'no-store'`，且 `<head>` 设 `no-cache` meta，浏览器不缓存数据，**每次打开即最新、无需手动清缓存**。
 
 ### 人工确认 SOP（pending 建议区）
 LLM 拿不准、或未触达自动回写阀门的持仓/昵称，会进入 `latest.json` 的 `pending_positions` / `pending_nicknames`（**仅建议、绝不自动写库**），需你在 `state.json` 人工拍板后提交才生效。
