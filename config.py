@@ -1,9 +1,10 @@
 """配置：从环境变量读取，缺失时用默认值。
 
-LLM 后端优先级（DeepSeek-V4-Flash 主力 + Agnes 二级 + GLM-5.2 兜底）：
-  1) 商汤 DeepSeek-V4-Flash（deepseek-v4-flash，复用 SENSENOVA_API_KEY）—— 主力
-  2) Agnes AI agnes-2.0-flash —— 免费多模态，二级
-  3) NVIDIA GLM-5.2（z-ai/glm-5.2，参考 portfolio 仓调用方式）—— 免费，兜底
+LLM 后端优先级（智谱 GLM-4.5-Air 主力 + DeepSeek-V4-Flash 二级 + Agnes 三级 + NVIDIA GLM-5.2 兜底）：
+  1) 智谱 AI GLM-4.5-Air（glm-4.5-air，ZHIPU_API_KEY）—— 主力（OpenAI 兼容）
+  2) 商汤 DeepSeek-V4-Flash（deepseek-v4-flash，复用 SENSENOVA_API_KEY）—— 二级
+  3) Agnes AI agnes-2.0-flash —— 免费多模态，三级
+  4) NVIDIA GLM-5.2（z-ai/glm-5.2，参考 portfolio 仓调用方式）—— 免费，兜底
 
 抓取：豆瓣话题页 + DOUBAN_COOKIE 登录态（HTTP 直连，无 WAF/Playwright）。
 状态：state.json 增量游标 + 昵称映射 + 持仓（每轮 commit 回仓库持久化）。
@@ -25,10 +26,18 @@ SCRAPE_MODE = os.getenv("SCRAPE_MODE", "topic").strip().lower()
 
 HEADLESS = os.getenv("HEADLESS", "false").lower() != "false"
 
-# ============ LLM 后端（agnes 主力 + GLM-5.2 二级 + SenseNova 兜底）============
+# ============ LLM 后端（智谱 GLM-4.5-Air 主力 + DeepSeek-V4-Flash 二级 + Agnes 三级 + NVIDIA GLM-5.2 兜底）============
 BACKENDS = [
     {
-        # ① 主力：商汤 DeepSeek-V4-Flash（复用 SENSENOVA_API_KEY，同商汤平台），参考 portfolio 仓调用方式
+        # ① 主力：智谱 AI GLM-4.5-Air（OpenAI 兼容，ZHIPU_API_KEY）
+        "name": "zhipu-glm-4.5-air",
+        "base_url": os.getenv("ZHIPU_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"),
+        "api_key": os.getenv("ZHIPU_API_KEY", ""),
+        "model": os.getenv("ZHIPU_MODEL", "glm-4.5-air"),
+        "timeout": int(os.getenv("ZHIPU_TIMEOUT", "120")),
+    },
+    {
+        # ② 二级：商汤 DeepSeek-V4-Flash（复用 SENSENOVA_API_KEY，同商汤平台），参考 portfolio 仓调用方式
         "name": "deepseek-v4-flash",
         "base_url": os.getenv("SENSENOVA_BASE_URL", "https://token.sensenova.cn/v1"),
         "api_key": os.getenv("SENSENOVA_API_KEY", ""),
@@ -36,7 +45,7 @@ BACKENDS = [
         "timeout": int(os.getenv("SENSENOVA_TIMEOUT", "120")),
     },
     {
-        # ② 二级：Agnes AI 免费多模态
+        # ③ 三级：Agnes AI 免费多模态
         "name": "agnes-2.0-flash",
         "base_url": os.getenv("AGNES_BASE_URL", "https://apihub.agnes-ai.com/v1"),
         "api_key": os.getenv("AGNES_API_KEY", ""),
@@ -44,7 +53,7 @@ BACKENDS = [
         "timeout": int(os.getenv("AGNES_TIMEOUT", "120")),
     },
     {
-        # ③ 兜底：NVIDIA GLM-5.2（免费，参考 portfolio 仓调用方式）
+        # ④ 兜底：NVIDIA GLM-5.2（免费，参考 portfolio 仓调用方式）
         "name": "nvidia-glm-5.2",
         "base_url": os.getenv("PRIMARY_BASE_URL", "https://integrate.api.nvidia.com/v1"),
         "api_key": os.getenv("NVIDIA_API_KEY", ""),

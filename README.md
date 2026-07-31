@@ -62,11 +62,12 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 ### 投资风格画像全自动增量更新
 `update_investor_profile` 复用「今日总览」内容，对 `investor_profile.json` 做增量修订：仅当今日发言确有新依据时才修订对应维度，无变化不强行重写；单维度修订建议 ≤150 字。
 
-### LLM 三级后端（DeepSeek-V4-Flash 主力 + Agnes 二级 + GLM-5.2 兜底）
+### LLM 四级后端（智谱 GLM-4.5-Air 主力 + DeepSeek-V4-Flash 二级 + Agnes 三级 + NVIDIA GLM-5.2 兜底）
 按顺序尝试，首个有 key 且成功即生效：
-1. **商汤 DeepSeek-V4-Flash** `deepseek-v4-flash`（复用 `SENSENOVA_API_KEY`，商汤平台，主力，参考 portfolio 仓调用方式）
-2. **Agnes AI** `agnes-2.0-flash`（免费多模态，二级）
-3. NVIDIA `z-ai/glm-5.2`（免费，兜底，参考 portfolio 仓调用方式）
+1. **智谱 AI GLM-4.5-Air** `glm-4.5-air`（OpenAI 兼容，`ZHIPU_API_KEY`，主力）
+2. **商汤 DeepSeek-V4-Flash** `deepseek-v4-flash`（复用 `SENSENOVA_API_KEY`，商汤平台，二级，参考 portfolio 仓调用方式）
+3. **Agnes AI** `agnes-2.0-flash`（免费多模态，三级）
+4. NVIDIA `z-ai/glm-5.2`（免费，兜底，参考 portfolio 仓调用方式）
 
 ### 昵称规则固化（供 LLM 判断昵称）
 `nickname_rules.py` / `nickname_rules.json` 将 47 条持仓映射反推出 **5 类命名规则**（拼音首字母 / 小名代指 / 绰号黑话 / 谐音取名 / 机构基金昵称），注入 LLM 提示。LLM 先按规则推断新昵称，再用 `config.USER_HINTS` 的确认映射校验，冲突以映射为准。
@@ -102,7 +103,8 @@ douban-tracker/
 | `SCRAPE_MODE` | `topic`（默认/开启）或 `group`（切回旧模式） |
 | `AGNES_API_KEY` | 二级后端 key（agnes-2.0-flash） |
 | `NVIDIA_API_KEY` | 兜底后端 key（glm-5.2） |
-| `SENSENOVA_API_KEY` | 主力后端 key（DeepSeek-V4-Flash，商汤平台） |
+| `SENSENOVA_API_KEY` | 二级后端 key（DeepSeek-V4-Flash，商汤平台） |
+| `ZHIPU_API_KEY` | 主力后端 key（智谱 GLM-4.5-Air，OpenAI 兼容） |
 
 ## 本地调试
 
