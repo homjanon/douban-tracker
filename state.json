@@ -248,15 +248,15 @@
         "current_price": "55.37（0.69%）"
       },
       {
-        "name": "安安(安记食品)",
-        "code": "",
+        "name": "卧龙电驱",
+        "code": "600580",
         "action": "买入",
         "category": "",
-        "cost_price": "暂无",
+        "cost_price": "33",
         "market_value": "暂无",
-        "note": "周一准备卖出",
-        "last_note": "计划周一卖出",
-        "first_seen": "08-03",
+        "note": "",
+        "last_note": "",
+        "first_seen": "08-04",
         "current_price": "暂无"
       }
     ]
