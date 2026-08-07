@@ -183,6 +183,16 @@
         "last_note": "",
         "current_price": "1.0835（0.04%）"
       },
+        {
+        "name": "国富全球科技互联混合 (QDII)‌C",
+        "code": "021842",
+        "action": "持有",
+        "first_seen": "07-03",
+        "category": "美股基金",
+        "cost_price": "1.03",
+        "last_note": "",
+        "current_price": "1.0835（0.04%）"
+      },
       {
         "name": "华宝致远混合(QDII)C",
         "code": "008253",
@@ -216,7 +226,7 @@
       {
         "name": "2000ETF",
         "code": "563300",
-        "action": "持有",
+        "action": "卖出",
         "category": "微盘股",
         "cost_price": "约1.320元",
         "market_value": "暂无",
@@ -240,7 +250,7 @@
       {
         "name": "卧龙电驱",
         "code": "600580",
-        "action": "持有",
+        "action": "卖出",
         "category": "",
         "cost_price": "暂无",
         "market_value": "暂无",
@@ -248,30 +258,6 @@
         "last_note": "昨天批量扫货，仓位加大",
         "first_seen": "08-04",
         "current_price": "36.58（0.97%）"
-      },
-      {
-        "name": "掌阅科技(zy)",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "融资盘买入日子全红",
-        "last_note": "融资盘买入zy的日子全红",
-        "first_seen": "08-06",
-        "current_price": "暂无"
-      },
-      {
-        "name": "科创50ETF(k50)",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "'两个50猛猛追赶'，加仓科创50ETF",
-        "last_note": "'两个50猛猛追赶'，加仓科创50ETF",
-        "first_seen": "08-07",
-        "current_price": "暂无"
       }
     ]
   },
