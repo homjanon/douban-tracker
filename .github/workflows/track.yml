@@ -92,6 +92,13 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: 每日追踪更新 $(date +%F)"
           git push
 
+      - name: 同步最新报告到 IMA 知识库（投资/豆瓣）
+        if: ${{ always() }}
+        env:
+          IMA_CLIENT_ID: ${{ secrets.IMA_CLIENT_ID }}
+          IMA_API_KEY: ${{ secrets.IMA_API_KEY }}
+        run: python3 scripts/ima_sync.py
+
       - name: 打包站点产物
         uses: actions/upload-pages-artifact@v5
         with:
@@ -103,3 +110,4 @@ jobs:
         uses: actions/deploy-pages@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
