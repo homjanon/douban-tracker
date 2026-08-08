@@ -35,6 +35,17 @@ FOLDER_ID = "folder_7478432929696520"
 MEDIA_TYPE_MD = 7
 CONTENT_TYPE_MD = "text/markdown"
 
+# 防污染守卫：北京时间 ≥15:00（A股收盘）才允许同步到 IMA
+# 原因：盘中手动触发时报告是中途版本，只有收盘后的最终版本值得进知识库
+def guard_market_closed():
+    import datetime
+    BJ = datetime.timezone(datetime.timedelta(hours=8))
+    now_bj = datetime.datetime.now(BJ)
+    if now_bj.hour < 15:
+        print(f"⚠️ 北京时间 {now_bj.strftime('%H:%M')} < 15:00（A股未收盘），"
+              f"跳过 IMA 同步——盘中版本不入库，等收盘后（≥15:00）再同步最终版。")
+        sys.exit(0)
+
 
 def load_credentials():
     client_id = os.environ.get("IMA_CLIENT_ID") or os.environ.get("IMA_OPENAPI_CLIENTID")
@@ -151,6 +162,9 @@ def main():
     args = parser.parse_args()
 
     client_id, api_key = load_credentials()
+
+    # 防污染守卫（北京时间 <15:00 跳过）
+    guard_market_closed()
 
     # 确定要上传的文件
     if args.file:
