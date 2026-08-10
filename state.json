@@ -50,6 +50,7 @@
     "露露": "泸州老窖",
     "安安": "安记食品",
     "音乐世家": "富国全球科技互联网股票(QDII)A"
+    "老伯伯": "铜冠铜箔"
   },
   "positions": {
     "positions": [
@@ -224,18 +225,6 @@
         "current_price": "39.07（0.70%）"
       },
       {
-        "name": "2000ETF",
-        "code": "563300",
-        "action": "卖出",
-        "category": "微盘股",
-        "cost_price": "约1.320元",
-        "market_value": "暂无",
-        "note": "已买入，采用每跌4%买一笔的策略，因跌幅大导致份额三倍买入，计划事后验证",
-        "last_note": "未到极端冰点，仅作为底部确认工具观察，未加仓",
-        "first_seen": "07-20",
-        "current_price": "1.407（0.29%）"
-      },
-      {
         "name": "长鑫科技",
         "code": "688825",
         "action": "持有",
@@ -246,30 +235,6 @@
         "last_note": "以40.2元买入少量仓位",
         "first_seen": "07-27",
         "current_price": "51.36（-2.13%）"
-      },
-      {
-        "name": "卧龙电驱",
-        "code": "600580",
-        "action": "卖出",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "",
-        "last_note": "昨天批量扫货，仓位加大",
-        "first_seen": "08-04",
-        "current_price": "35.80（-2.29%）"
-      },
-      {
-        "name": "k50(科创50ETF)",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "加仓科创50ETF",
-        "last_note": "加仓科创50ETF",
-        "first_seen": "08-07",
-        "current_price": "暂无"
       },
       {
         "name": "zy(掌阅科技)",
