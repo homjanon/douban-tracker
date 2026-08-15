@@ -88,7 +88,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data reports state.json investor_profile.json investor_history.json
+          git add data reports state.json investor_profile.json
+          git add investor_history.json 2>/dev/null || true   # 当天无画像更新时该文件不存在，忽略
           git diff --cached --quiet || git commit -m "chore: 每日追踪更新 $(date +%F)"
           git push
 
