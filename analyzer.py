@@ -20,6 +20,9 @@ from nickname_rules import load_nickname_rules, rules_to_text
 
 # 投资风格画像（楼主历史发言提炼，作研判上下文，避免误判其操作意图）
 _PROFILE_FILE = os.getenv("PROFILE_FILE", "investor_profile.json")
+# 画像历史归档：每次更新后的完整快照按日期追加（纯归档，不参与 LLM 输入；供回溯/恢复）
+_PROFILE_HISTORY_FILE = os.getenv("PROFILE_HISTORY_FILE", "investor_history.json")
+_HISTORY_KEEP_DAYS = 90  # 归档保留天数，自动裁剪更早的快照
 
 
 def load_investor_profile():
@@ -293,14 +296,17 @@ def update_investor_profile(overview, posts, today):
     if not overview_blob.strip():
         return []
 
-    system = ("你是投资心理分析师。依据楼主【今日总览】，对已有投资风格画像做**增量修订**。"
+    system = ("你是投资心理分析师。依据楼主【今日总览】，对已有投资风格画像做**累积式增量修订**："
+              "把现有画像对应维度的**全部历史要点**与今日新依据**合并**为一段完整的维度描述"
+              "（历史要点保留、吸收今日新增、去重去噪、按时间先后组织），而不是只写当日新增。"
               "严格规则：① 仅当今日发言确能支撑某维度更新时才返回该维度；"
               "② 每条修订必须附 evidence（今日原话/事实依据）；无依据绝不改动；"
-              "③ 无变化的维度不要返回；不要重写整个画像、不要凑字数；单维度 ≤150 字。")
-    user = (f"现有画像：\n{prof_text}\n\n"
+              "③ 无变化的维度不要返回；不要重写整个画像、不要凑字数；单维度 ≤300 字；"
+              "④ 时间敏感信息（如某日建仓/卖出）保留日期标注，稳定的长期特质要持续保留。")
+    user = (f"现有画像（截至昨日累积）：\n{prof_text}\n\n"
             f"今日总览（增量依据）：\n{overview_blob}\n\n"
             f"请输出 JSON：{{ \"updates\": [{{ \"dimension\": \"维度名\", "
-            f"\"new_text\": \"修订后表述\", \"evidence\": \"今日依据\" }}] }}\n"
+            f"\"new_text\": \"【整合历史要点与今日新增后的完整维度描述】\", \"evidence\": \"今日依据\" }}] }}\n"
             f"无更新则 \"updates\": []。只输出 JSON。")
 
     out = call_multi([{"role": "system", "content": system},
@@ -355,4 +361,28 @@ def update_investor_profile(overview, posts, today):
     except Exception as e:
         print(f"[画像更新] ⚠️ 写回失败: {e}")
         return []
+
+    # 归档：把更新后的完整画像快照按日期追加到 investor_history.json（纯归档，不参与 LLM 输入）
+    try:
+        with open(_PROFILE_HISTORY_FILE, encoding="utf-8") as f:
+            hist = json.load(f)
+        if not isinstance(hist, dict):
+            hist = {}
+    except Exception:
+        hist = {}
+    hist[today] = {
+        "profile": {k: _to_text(v) for k, v in prof.get("profile", {}).items()},
+        "summary": prof.get("summary", ""),
+        "updated_dims": [u["dimension"] for u in valid],
+    }
+    # 自动裁剪：仅保留最近 _HISTORY_KEEP_DAYS 天
+    dates = sorted(hist.keys())
+    for old in dates[:-_HISTORY_KEEP_DAYS]:
+        hist.pop(old, None)
+    try:
+        with open(_PROFILE_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(hist, f, ensure_ascii=False, indent=2)
+        print(f"[画像归档] ✅ {today} 快照已追加到 {_PROFILE_HISTORY_FILE}（现存 {len(hist)} 天）")
+    except Exception as e:
+        print(f"[画像归档] ⚠️ 写失败: {e}")
     return changed

@@ -640,7 +640,12 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
         L.append("")
 
     L.append(f"\n*🤖 自动生成于 {ts} ｜ 豆瓣楼主发言追踪*")
-    return "\n".join(L)
+    md = "\n".join(L)
+    # 图片相对路径 → 公网绝对 URL（仓库 md 与 IMA 知识库均可渲染；commit 后即生效，无 404 窗口）
+    md = re.sub(r'!\[([^\]]*)\]\((data/images/[^)]+)\)',
+                r'![\1](https://raw.githubusercontent.com/homjanon/douban-tracker/main/\2)',
+                md)
+    return md
 
 
 # 缓存在 main 中注入，避免重复 load_state

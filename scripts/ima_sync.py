@@ -19,6 +19,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import sys
 import time
 import urllib.request
@@ -190,6 +191,21 @@ def main():
     file_size = file_path.stat().st_size
     file_ext = file_path.suffix.lstrip(".").lower()
     print(f"上传: {file_name} ({file_size} bytes)")
+
+    # 兜底：若报告内仍有相对图片路径（历史报告/异常），改写为公网绝对 URL 再上传
+    try:
+        raw_md = file_path.read_text(encoding="utf-8")
+        fixed = re.sub(r'!\[([^\]]*)\]\((data/images/[^)]+)\)',
+                       r'![\1](https://raw.githubusercontent.com/homjanon/douban-tracker/main/\2)',
+                       raw_md)
+        if fixed != raw_md:
+            _tmp = file_path.with_name(file_name + ".ima_tmp")
+            _tmp.write_text(fixed, encoding="utf-8")
+            file_path = _tmp  # 上传改写版，不影响仓库原件
+            file_size = _tmp.stat().st_size
+            print(f"  ℹ️ 检测到 {raw_md.count('data/images/')} 处相对图片路径，已改写为绝对 URL 上传")
+    except Exception as e:
+        print(f"  ⚠️ 图片改写跳过: {e}")
 
     # ① 重名检查
     resp = api_call(client_id, api_key, "openapi/wiki/v1/check_repeated_names", {
