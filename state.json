@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-16 16:58:17",
+  "updated_at": "2026-08-16 23:23:56",
   "last_cursor": "2026-08-1521:33:29",
   "nickname_map": {
     "C50": "创业板50ETF",
@@ -228,25 +228,13 @@
         "name": "长鑫科技",
         "code": "688825",
         "action": "持有",
-        "category": "",
+        "category": "存储",
         "cost_price": "约40.2元",
         "market_value": "暂无",
-        "note": "以40.2元买入少量仓位",
+        "note": "",
         "last_note": "以40.2元买入少量仓位",
         "first_seen": "07-27",
         "current_price": "55.18（4.35%）"
-      },
-      {
-        "name": "zy(掌阅科技)",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "买入掌阅科技",
-        "last_note": "买入掌阅科技",
-        "first_seen": "08-07",
-        "current_price": "暂无"
       }
     ]
   },
