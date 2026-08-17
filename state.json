@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-17 17:09:20",
+  "updated_at": "2026-08-18 07:44:57",
   "last_cursor": "2026-08-1717:05:22",
   "nickname_map": {
     "C50": "创业板50ETF",
@@ -54,56 +54,6 @@
   },
   "positions": {
     "positions": [
-      {
-        "name": "易点天下",
-        "code": "301171",
-        "action": "持有",
-        "first_seen": "07-03",
-        "category": "传媒",
-        "cost_price": "约20-29元",
-        "last_note": "买入易点天下",
-        "current_price": "39.23（7.77%）"
-      },
-      {
-        "name": "引力传媒",
-        "code": "603598",
-        "action": "持有",
-        "first_seen": "07-03",
-        "category": "传媒",
-        "cost_price": "暂无",
-        "last_note": "买入引力传媒",
-        "current_price": "18.34（-1.03%）"
-      },
-      {
-        "name": "视觉中国",
-        "code": "000681",
-        "action": "持有",
-        "first_seen": "07-03",
-        "category": "传媒",
-        "cost_price": "暂无",
-        "last_note": "观察到反弹，已过均线",
-        "current_price": "18.18（0.72%）"
-      },
-      {
-        "name": "中文在线",
-        "code": "300364",
-        "action": "持有",
-        "first_seen": "07-02",
-        "category": "传媒",
-        "cost_price": "暂无",
-        "last_note": "",
-        "current_price": "25.12（1.87%）"
-      },
-      {
-        "name": "创业板50ETF",
-        "code": "159949",
-        "action": "持有",
-        "first_seen": "07-02",
-        "category": "创业板",
-        "cost_price": "暂无",
-        "last_note": "加仓创业板50ETF",
-        "current_price": "1.765（3.10%）"
-      },
       {
         "name": "华安文体健康混合",
         "code": "001532",
@@ -175,16 +125,6 @@
         "current_price": "3.4698（2.92%）"
       },
       {
-        "name": "富国全球科技互联网股票(QDII)A",
-        "code": "006452",
-        "action": "持有",
-        "first_seen": "07-03",
-        "category": "美股基金",
-        "cost_price": "约10万元",
-        "last_note": "保持50%仓位",
-        "current_price": "1.0843（0.01%）"
-      },
-      {
         "name": "国富全球科技互联混合 (QDII)‌C",
         "code": "021842",
         "action": "持有",
@@ -238,15 +178,23 @@
       },
       {
         "name": "网易云(富国全球科技互联网QDII)",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
+        "code": "022184",
+        "action": "持有",
+        "category": "美股基金",
+        "cost_price": "约10万元",
         "market_value": "暂无",
         "note": "保持50%仓位，四连涨",
         "last_note": "保持50%仓位，四连涨",
         "first_seen": "08-17",
         "current_price": "暂无"
+      },
+      {
+        "name": "一鸣食品",
+        "code": "605179",
+        "action": "买入",
+        "category": "食品/牛奶",
+        "cost_price": "暂无",
+        "note": ""
       }
     ]
   },
