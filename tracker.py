@@ -581,18 +581,28 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
     agg_title = "今日发言聚合" if SCRAPE_MODE == "group" else "该最新广播作者发言聚合"
     L.append(f"## 📝 {agg_title}（共 {today_count} 条）")
     if today_count > AGGREGATE_THRESHOLD:
-        for label, g, pct in aggregate_posts(posts, {}, {"positions": []}):
+        # ① 聚合概览：用真实昵称映射/持仓做关键词（与网页数据源同参，修复"全归其他讨论"bug）
+        agg_groups = aggregate_posts(posts, load_state_nicknames(), load_state_positions())
+        for label, g, pct in agg_groups:
             tr = (g["times"][0] if g["times"] else "")
             L.append(f"### {label}（提及 {g['count']} 次，占比 {pct}%）{tr}")
             for s in g["samples"]:
                 L.append(f"- {s}")
             L.append("")
-    else:
-        for p in posts[:60]:
+        # ② 全量发言逐条展示（与网页端 docs/index.html 完全一致：posts 全量、内容不截断）
+        L.append(f"### 📄 全部发言（共 {today_count} 条）")
+        for p in posts:
             pic = " [图]" if "![图片]" in p.get("content", "") else ""
             q = f"  ⊳ {p['quote']}" if p.get("quote") else ""
-            L.append(f"- ({p.get('time','')}){pic} {p.get('content','')[:300]}{q}")
-        L.append("")
+            L.append(f"- ({p.get('time','')}){pic} {p.get('content','')}{q}")
+            L.append("")
+    else:
+        # 非聚合（≤阈值）：全量逐条，去掉 300 字截断，与网页一致
+        for p in posts:
+            pic = " [图]" if "![图片]" in p.get("content", "") else ""
+            q = f"  ⊳ {p['quote']}" if p.get("quote") else ""
+            L.append(f"- ({p.get('time','')}){pic} {p.get('content','')}{q}")
+            L.append("")
 
     # ⑤ 投资风格分析（读 investor_profile.json）
     prof = load_investor_profile()
