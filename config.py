@@ -30,19 +30,25 @@ HEADLESS = os.getenv("HEADLESS", "false").lower() != "false"
 BACKENDS = [
     {
         # ① 主力：智谱 AI GLM-4.5-Air（OpenAI 兼容，ZHIPU_API_KEY）
+        #  thinking 关闭（参考 qiugecaozuo 实测：关思考 content 472→5306 字）+ max_tokens 给足防截断
         "name": "zhipu-glm-4.5-air",
         "base_url": os.getenv("ZHIPU_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"),
         "api_key": os.getenv("ZHIPU_API_KEY", ""),
         "model": os.getenv("ZHIPU_MODEL", "glm-4.5-air"),
         "timeout": int(os.getenv("ZHIPU_TIMEOUT", "120")),
+        "max_tokens": 12000,
+        "extra": {"thinking": {"type": "disabled"}},
     },
     {
-        # ② 二级：商汤 DeepSeek-V4-Flash（复用 SENSENOVA_API_KEY，同商汤平台），参考 portfolio 仓调用方式
+        # ② 二级：商汤 DeepSeek-V4-Flash（复用 SENSENOVA_API_KEY，同商汤平台），参考 qiugecaozuo 仓 call_llm.py
+        #  reasoning_effort=low 轻思考（实测 12s→2.6s 且 content 稳定非空）+ max_tokens 给足
         "name": "deepseek-v4-flash",
         "base_url": os.getenv("SENSENOVA_BASE_URL", "https://token.sensenova.cn/v1"),
         "api_key": os.getenv("SENSENOVA_API_KEY", ""),
         "model": os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"),
         "timeout": int(os.getenv("SENSENOVA_TIMEOUT", "120")),
+        "max_tokens": 12000,
+        "extra": {"reasoning_effort": "low"},
     },
     {
         # ③ 三级：Agnes AI 免费多模态
@@ -51,6 +57,7 @@ BACKENDS = [
         "api_key": os.getenv("AGNES_API_KEY", ""),
         "model": os.getenv("AGNES_MODEL", "agnes-2.0-flash"),
         "timeout": int(os.getenv("AGNES_TIMEOUT", "120")),
+        "max_tokens": 12000,
     },
     {
         # ④ 兜底：NVIDIA GLM-5.2（免费，参考 portfolio 仓调用方式）
@@ -59,6 +66,7 @@ BACKENDS = [
         "api_key": os.getenv("NVIDIA_API_KEY", ""),
         "model": os.getenv("PRIMARY_MODEL", "z-ai/glm-5.2"),
         "timeout": int(os.getenv("PRIMARY_TIMEOUT", "120")),
+        "max_tokens": 12000,
     },
 ]
 
