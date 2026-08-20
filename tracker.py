@@ -722,8 +722,10 @@ def main():
         for c in pos_changes:
             print(f"[持仓更新] {c}")
 
-    # 5. 投资风格画像全自动增量更新（复用今日总览内容，有依据才改）
+    # 5. 投资风格画像全自动增量更新（复用今日总览输出里的 profile_updates，有依据才改）
     prof_changes = update_investor_profile(overview, display, today)
+    # 消费后立即移除内部字段，避免 profile_updates 泄露进 latest.json/前端
+    overview.pop("profile_updates", None)
     for c in prof_changes:
         print(f"[画像更新] {c}")
 
