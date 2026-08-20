@@ -133,3 +133,8 @@ AGGREGATE_THRESHOLD = int(os.getenv("AGGREGATE_THRESHOLD", "50"))  # 发言>此�
 DATA_DIR = os.getenv("DATA_DIR", "data")
 REPORT_DIR = os.getenv("REPORT_DIR", "reports")
 STATE_FILE = os.getenv("STATE_FILE", "state.json")
+
+# 图片保留天数（2026-08-20 起：图片按日期子目录 data/images/YYYY-MM-DD/ 存储，
+# 清理按目录名判断，不依赖 mtime——git checkout 会刷新 mtime 导致旧清理失效）。
+# 默认 30 天：IMA/报告近一月配图正常，体积可控；可用 Secret KEEP_IMG_DAYS 覆盖。
+KEEP_IMG_DAYS = int(os.getenv("KEEP_IMG_DAYS", "30"))
