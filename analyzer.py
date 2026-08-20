@@ -12,6 +12,7 @@
 import json
 import os
 import re
+import time
 
 import requests
 
@@ -55,26 +56,39 @@ def _post(backend, messages):
     if not key:
         return None
     try:
+        payload = {"model": backend["model"], "messages": messages, "temperature": 0.3}
+        # 后端级 max_tokens / extra（如智谱关思考、商汤 reasoning_effort=low，参考 qiugecaozuo 用法）
+        if backend.get("max_tokens"):
+            payload["max_tokens"] = backend["max_tokens"]
+        payload.update(backend.get("extra", {}))
         r = requests.post(
             f"{backend['base_url']}/chat/completions",
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json={"model": backend["model"], "messages": messages, "temperature": 0.3},
+            json=payload,
             timeout=backend.get("timeout", TIMEOUT),
         )
         r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"]
+        # 兼容两种响应：标准 content / 商汤系 reasoning_content（2026-08-20）
+        msg = r.json()["choices"][0].get("message", {})
+        c = msg.get("content") or msg.get("reasoning_content") or ""
+        return c or None
     except Exception as e:
         print(f"[analyzer] {backend['name']} 调用失败: {e}")
         return None
 
 
-def call_multi(messages):
-    """按 BACKENDS 顺序尝试，返回首个成功内容；全失败返回 None。"""
+def call_multi(messages, budget=90):
+    """按 BACKENDS 顺序尝试，返回首个成功内容；全失败返回 None。
+    budget=总时限(秒)：2026-08-20 加固，防止后端全挂时逐轮超时叠加拖垮 job。"""
+    start = time.monotonic()
     for b in BACKENDS:
         c = _post(b, messages)
         if c:
             print(f"[analyzer] ✅ {b['name']} 调用成功（{b['model']}）")
             return c
+        if time.monotonic() - start >= budget:
+            print(f"[analyzer] ⚠️ 已达总时限 {budget}s，放弃剩余后端")
+            break
     print("[analyzer] ⚠️ 所有后端均未成功，回退摘录")
     return None
 
@@ -194,19 +208,22 @@ def analyze_positions_and_nicknames(posts, nickname_map, positions, image_contex
         "mentions": data.get("mentions", {}) or {},
     }
 
-# ============ 今日总览（单次 LLM 调用产出 6 子板块）============
+# ============ 今日总览（单次 LLM 调用产出 5 子板块 + 画像修订建议）============
 def build_daily_overview(posts, nickname_map, positions, image_context=""):
-    """从当日发言一次性提取「今日总览」5 子板块，避免多次调用浪费 token。
+    """从当日发言一次性提取「今日总览」5 子板块 + profile_updates 画像修订建议。
 
     返回 dict：
       market_background / today_actions / discussion_topics /
-      favored_sectors / risk_warnings
+      favored_sectors / risk_warnings / profile_updates
+    profile_updates：画像增量修订建议数组 [{dimension,new_text,evidence}]（并入本调用，
+    2026-08-20 起 update_investor_profile 不再单独调 LLM，每日调用 4→3 次）。
     image_context：图片识别文字（可选），拼接进研判上下文。
     无发言或调用失败则返回各字段空字符串。
     """
     if not posts:
         return {k: "" for k in ("market_background", "today_actions",
-                                "discussion_topics", "favored_sectors", "risk_warnings")}
+                                "discussion_topics", "favored_sectors", "risk_warnings",
+                                "profile_updates")}
     hint = USER_HINTS.get("default", "")
     rules = rules_to_text()
     profile = load_investor_profile()
@@ -216,7 +233,7 @@ def build_daily_overview(posts, nickname_map, positions, image_context=""):
     nick_lines = "\n".join(f"  {k} = {v}" for k, v in nickname_map.items()) or "（空）"
     pos_lines = "\n".join(f"  {p.get('name','?')}" for p in positions.get("positions", [])) or "（空）"
 
-    system = ("你是财经编辑+实战分析师，依据楼主当日发言，产出结构化的「今日总览」。"
+    system = ("你是财经编辑+实战分析师，依据楼主当日发言，产出结构化的「今日总览」+「画像修订建议」。"
               "务必使用下方昵称映射与规律正确解码黑话；结合楼主投资风格画像理解其操作意图。"
               "各字段独立成文、事实导向、不编造；"
               "discussion_topics 必须基于发言原文提炼，不得无中生有。"
@@ -226,34 +243,41 @@ def build_daily_overview(posts, nickname_map, positions, image_context=""):
               + ("\n\n" + INVALID_HINTS if INVALID_HINTS else ""))
     user = (f"现有持仓：\n{pos_lines}\n\n现有昵称映射：\n{nick_lines}\n\n"
             f"今日发言：\n{text_blob}\n\n"
-            f"请输出 JSON（5 个字段，均为字符串，可含 Markdown 列表/表格）：\n"
+            f"请输出 JSON（6 个字段）：\n"
             f'{{'
             f'"market_background": "市场背景（宏观/指数/情绪一段概述）",'
             f'"today_actions": "今日操作（Markdown 表格：| 操作 | 标的 | 详情 |，操作列用 ✅/⏭️/❌ 标注）",'
             f'"discussion_topics": "今日议题（Markdown 表格：| 议题 | 态度 | 核心观点 | 关键引用 |；态度用 📈看多/📉看空/➡️中性/💬讨论 标注；核心观点为楼主对该议题的看法一句话；关键引用为1-2条发言原话，每条≤25字）",'
             f'"favored_sectors": "看好板块/方向（无序列表 - **板块**：理由）",'
-            f'"risk_warnings": "风险提示（无序列表 - 「原文」——解读）"'
+            f'"risk_warnings": "风险提示（无序列表 - 「原文」——解读）",'
+            f'"profile_updates": [{{"dimension":"现有画像维度名","new_text":"【整合现有画像该维度全部历史要点与今日新依据后的完整描述】","evidence":"今日原话/事实依据"}}]'
             f'}}\n'
-            f"只输出 JSON，不要解释。每个字段的值必须是**字符串**（即便是列表也请写成 Markdown 文本，不要输出 JSON 数组）；"
-            f"无内容字段给空字符串。")
+            f"只输出 JSON，不要解释。前 5 个字段的值必须是**字符串**（即便是列表也请写成 Markdown 文本，不要输出 JSON 数组）；"
+            f"无内容字段给空字符串。"
+            f"profile_updates 规则：仅当今日发言确能支撑某画像维度更新时才返回该条目；"
+            f"new_text 必须整合历史要点+今日新增（非只写当日）、单维度≤300字；"
+            f"无依据/无变化的维度不要返回；完全无更新则 \"profile_updates\": []。")
 
     messages = [{"role": "system", "content": system},
                 {"role": "user", "content": user}]
     keys = ("market_background", "today_actions",
             "discussion_topics", "favored_sectors", "risk_warnings")
     _empty_ov = {k: "" for k in keys}
+    _empty_ov["profile_updates"] = []
 
     def _parse_overview(out):
-        """把 LLM 输出解析为 5 子板块 dict；空响应返回 _empty_ov。"""
+        """把 LLM 输出解析为 5 子板块 + profile_updates dict；空响应返回 _empty_ov。"""
         if not out:
-            return _empty_ov
+            return dict(_empty_ov)
         raw = _extract_text(out)
         try:
             m = re.search(r'\{.*\}', raw, flags=re.DOTALL)
             data = json.loads(m.group(0)) if m else {}
         except Exception:
             data = {}
-        return {k: _to_text(data.get(k, "")) for k in keys}
+        res = {k: _to_text(data.get(k, "")) for k in keys}
+        res["profile_updates"] = data.get("profile_updates") or []
+        return res
 
     result = _parse_overview(call_multi(messages))
     # 空值校验 + 自动重试：若 5 子板块全空（LLM 偶发返回空 JSON），
@@ -279,47 +303,21 @@ def _to_text(v):
 
 # ============ 投资风格画像全自动增量更新 ============
 def update_investor_profile(overview, posts, today):
-    """复用今日总览内容，对 investor_profile.json 做增量更新。
+    """消费 build_daily_overview 输出里的 profile_updates（2026-08-20 起不再单独调 LLM，
+    每日 LLM 调用 4→3 次），对 investor_profile.json 做增量更新。
 
-    阀门：LLM 只返回『确有今日发言依据』的维度修订（含 evidence）；
+    阀门：只接受『确有今日发言依据』的维度修订（含 evidence）；
           无变化/无依据的维度不返回。返回空表示本次不改动。
-    安全阀：已移除数量熔断，接受全部有依据（dimension+new_text+evidence 齐备）的更新；
+    安全阀：接受全部有依据（dimension+new_text+evidence 齐备）的更新；
     仅对现有维度回写，避免 schema 漂移（不新增/不删除维度）。
     成功回写 investor_profile.json（profile 覆盖 + evolution 追加 + last_updated 更新）。
     返回 [(变更描述)] 供审计。
     """
-    prof_text = load_investor_profile()
-    if not prof_text:
+    if not load_investor_profile():
         return []
-    ov = overview or {}
-    overview_blob = "\n".join(f"- {k}：{_to_text(v)}" for k, v in ov.items() if v)
-    if not overview_blob.strip():
+    updates = (overview or {}).get("profile_updates") or []
+    if not updates:
         return []
-
-    system = ("你是投资心理分析师。依据楼主【今日总览】，对已有投资风格画像做**累积式增量修订**："
-              "把现有画像对应维度的**全部历史要点**与今日新依据**合并**为一段完整的维度描述"
-              "（历史要点保留、吸收今日新增、去重去噪、按时间先后组织），而不是只写当日新增。"
-              "严格规则：① 仅当今日发言确能支撑某维度更新时才返回该维度；"
-              "② 每条修订必须附 evidence（今日原话/事实依据）；无依据绝不改动；"
-              "③ 无变化的维度不要返回；不要重写整个画像、不要凑字数；单维度 ≤300 字；"
-              "④ 时间敏感信息（如某日建仓/卖出）保留日期标注，稳定的长期特质要持续保留。")
-    user = (f"现有画像（截至昨日累积）：\n{prof_text}\n\n"
-            f"今日总览（增量依据）：\n{overview_blob}\n\n"
-            f"请输出 JSON：{{ \"updates\": [{{ \"dimension\": \"维度名\", "
-            f"\"new_text\": \"【整合历史要点与今日新增后的完整维度描述】\", \"evidence\": \"今日依据\" }}] }}\n"
-            f"无更新则 \"updates\": []。只输出 JSON。")
-
-    out = call_multi([{"role": "system", "content": system},
-                      {"role": "user", "content": user}])
-    if not out:
-        return []
-    raw = _extract_text(out)
-    try:
-        m = re.search(r'\{.*\}', raw, flags=re.DOTALL)
-        data = json.loads(m.group(0)) if m else {}
-    except Exception:
-        return []
-    updates = data.get("updates", []) or []
     # 现有维度集合（锁定 schema：仅回写已有维度，防止 LLM 把维度膨胀回去）
     try:
         with open(_PROFILE_FILE, encoding="utf-8") as _f:
