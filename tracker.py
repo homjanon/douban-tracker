@@ -13,7 +13,7 @@ import re
 import requests
 
 from config import (DATA_DIR, REPORT_DIR, STATE_FILE, RECENT_N,
-                    AGGREGATE_THRESHOLD, USER_HINTS, SCRAPE_MODE)
+                    AGGREGATE_THRESHOLD, USER_HINTS, SCRAPE_MODE, KEEP_IMG_DAYS)
 from scraper import scrape_user
 from analyzer import (daily_summary, analyze_positions_and_nicknames,
                       build_daily_overview, load_investor_profile,
@@ -87,19 +87,25 @@ def enrich_prices(positions):
 
 # ============ 发言图片下载（方案B：绕过豆瓣防盗链，入库同源加载）============
 def _download_image(url, img_dir, cookie=""):
-    """下载单张图片到 img_dir，返回本地相对路径（data/images/xxx.jpg）或 None。"""
+    """下载单张图片到 img_dir/<当天日期>/ 子目录，返回 data/images/YYYY-MM-DD/xxx.jpg 或 None。
+
+    日期子目录（2026-08-20）：清理按目录名判断，不依赖 mtime
+    （git checkout 会刷新文件 mtime，旧版按 mtime 清理在 CI 里永不生效）。
+    """
     import hashlib
     try:
-        os.makedirs(img_dir, exist_ok=True)
+        today = datetime.datetime.now(CST).strftime("%Y-%m-%d")
+        day_dir = os.path.join(img_dir, today)
+        os.makedirs(day_dir, exist_ok=True)
         ext = ".jpg"
         m = re.search(r"\.([a-zA-Z0-9]+)(?:\?|$)", url)
         if m:
             ext = "." + m.group(1).lower()[:4]
         fname = hashlib.md5(url.encode()).hexdigest() + ext
-        fpath = os.path.join(img_dir, fname)
+        fpath = os.path.join(day_dir, fname)
         # 已存在且非空则跳过下载（幂等，避免重复请求）
         if os.path.exists(fpath) and os.path.getsize(fpath) > 1024:
-            return f"data/images/{fname}"
+            return f"data/images/{today}/{fname}"
         headers = {
             "Referer": "https://www.douban.com/",
             "User-Agent": "Mozilla/5.0",
@@ -112,7 +118,7 @@ def _download_image(url, img_dir, cookie=""):
             return None
         with open(fpath, "wb") as f:
             f.write(r.content)
-        return f"data/images/{fname}"
+        return f"data/images/{today}/{fname}"
     except Exception as e:
         print(f"[图片下载] 失败: {url[:50]} → {e}")
         return None
@@ -148,17 +154,30 @@ def download_post_images(posts, data_dir):
     return count
 
 
-def cleanup_old_images(data_dir, keep_days=3):
-    """删除 data/images 中修改时间超过 keep_days 天的文件（仅保留近 N 天）。"""
-    import time
+def cleanup_old_images(data_dir, keep_days=30):
+    """删除 data/images 下超过 keep_days 天的日期子目录；根目录散文件（旧版遗留）一并清理。
+
+    2026-08-20 重写：改为按目录名 YYYY-MM-DD 判断，不依赖 mtime——
+    git checkout 会把所有文件 mtime 刷成当前时间，旧版 mtime 方案在 CI 永不生效（图片无限累积）。
+    """
+    import shutil
     img_dir = os.path.join(data_dir, "images")
     if not os.path.isdir(img_dir):
         return 0
-    cutoff = time.time() - keep_days * 86400
+    cutoff = datetime.datetime.now(CST).date() - datetime.timedelta(days=keep_days)
     removed = 0
-    for f in os.listdir(img_dir):
-        fp = os.path.join(img_dir, f)
-        if os.path.isfile(fp) and os.path.getmtime(fp) < cutoff:
+    for entry in os.listdir(img_dir):
+        fp = os.path.join(img_dir, entry)
+        if os.path.isdir(fp):
+            try:
+                d = datetime.datetime.strptime(entry, "%Y-%m-%d").date()
+            except ValueError:
+                continue  # 非日期目录（理论上没有）跳过
+            if d < cutoff:
+                shutil.rmtree(fp, ignore_errors=True)
+                removed += 1
+        elif os.path.isfile(fp):
+            # 根目录散文件 = 旧版（无日期子目录）遗留，一律清理
             try:
                 os.remove(fp)
                 removed += 1
@@ -782,10 +801,10 @@ def main():
     st["updated_at"] = ts
     save_state(st)
 
-    # 9.5 清理超过 3 天的旧图片（仅保留近 3 天，控制仓库体积）
-    removed = cleanup_old_images(DATA_DIR, keep_days=3)
+    # 9.5 清理超过 KEEP_IMG_DAYS 天的旧图片目录（按日期子目录，不依赖 mtime）
+    removed = cleanup_old_images(DATA_DIR, keep_days=KEEP_IMG_DAYS)
     if removed:
-        print(f"[图片] 清理 {removed} 张超过 3 天的旧图片")
+        print(f"[图片] 清理 {removed} 个超过 {KEEP_IMG_DAYS} 天的旧图片目录/文件")
 
     print(f"[完成] data/latest.json(6板块) + reports/{now.strftime('%Y-%m-%d')}.md 已生成；"
           f"昵称→{len(st['nickname_map'])} 持仓→{len(st['positions']['positions'])}"
