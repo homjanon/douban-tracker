@@ -63,11 +63,13 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 `update_investor_profile` 复用「今日总览」内容，对 `investor_profile.json` 做增量修订：仅当今日发言确有新依据时才修订对应维度，无变化不强行重写；单维度修订建议 ≤150 字。
 
 ### LLM 四级后端（智谱 GLM-4.5-Air 主力 + DeepSeek-V4-Flash 二级 + Agnes 三级 + NVIDIA GLM-5.2 兜底）
-按顺序尝试，首个有 key 且成功即生效：
-1. **智谱 AI GLM-4.5-Air** `glm-4.5-air`（OpenAI 兼容，`ZHIPU_API_KEY`，主力）
-2. **商汤 DeepSeek-V4-Flash** `deepseek-v4-flash`（复用 `SENSENOVA_API_KEY`，商汤平台，二级，参考 portfolio 仓调用方式）
+按顺序尝试，首个有 key 且成功即生效；**每日 3 次 LLM 调用**（摘要 / 持仓昵称研判 / 今日总览+画像修订合并，2026-08-20 优化，原先 4 次）：
+1. **智谱 AI GLM-4.5-Air** `glm-4.5-air`（OpenAI 兼容，`ZHIPU_API_KEY`，主力；`thinking` 关闭 + `max_tokens=12000`，参考 qiugecaozuo：关思考 content 472→5306 字）
+2. **商汤 DeepSeek-V4-Flash** `deepseek-v4-flash`（复用 `SENSENOVA_API_KEY`，商汤平台，二级；`reasoning_effort=low` 轻思考 + `max_tokens=12000`，实测 12s→2.6s 且 content 稳定非空）
 3. **Agnes AI** `agnes-2.0-flash`（免费多模态，三级）
 4. NVIDIA `z-ai/glm-5.2`（免费，兜底，参考 portfolio 仓调用方式）
+
+> **调用次数与稳定性（2026-08-20 优化）**：`analyzer.call_multi` 加 90s 总时限（后端全挂快速降级，不再逐后端叠加超时）；画像更新并入「今日总览」一次调用（`profile_updates` 字段），不再单独调 LLM。
 
 ### 昵称规则固化（供 LLM 判断昵称）
 `nickname_rules.py` / `nickname_rules.json` 将 47 条持仓映射反推出 **5 类命名规则**（拼音首字母 / 小名代指 / 绰号黑话 / 谐音取名 / 机构基金昵称），注入 LLM 提示。LLM 先按规则推断新昵称，再用 `config.USER_HINTS` 的确认映射校验，冲突以映射为准。
