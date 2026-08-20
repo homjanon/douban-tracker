@@ -122,6 +122,7 @@ python tracker.py
 - `state.json` 的 `positions` 由 Actions **全自动维护**（买入/卖出/成本/字段提纯），`nickname_map` 为持仓映射，无法确认的新增项进 `pending` 建议区待你人工确认后提交才生效。
 - `investor_profile.json` / `nickname_rules.json` 可直接编辑，无需改代码。
 - 时区：所有时间均为北京时间（UTC+8）。
+- **图片保留规则（2026-08-20 起）**：发言图片存 `data/images/YYYY-MM-DD/<hash>.jpg`（按下载日期分子目录），每轮运行清理超过 `KEEP_IMG_DAYS`（默认 **30 天**，可用 Secret `KEEP_IMG_DAYS` 覆盖）的旧日期目录。按目录名判断、**不依赖 mtime**（git checkout 会刷新文件修改时间，旧版 mtime 方案在 CI 永不生效导致图片无限累积）。注意：超过保留期的旧报告/IMA 文档中的图片链接（指向 GitHub raw）会 404。
 - Pages 看板右上角「? 手动触发更新」按钮跳转 Actions 页面，点 Run workflow 即可即时运行（免密钥、安全）。
 - **cookie 安全**：`DOUBAN_COOKIE` 为登录凭证，仅注入私仓 Secrets，勿提交；建议定期「设置 → 退出其他设备」轮换。
 - **看板实时性**：`docs/index.html` 拉取 `data/latest.json` 时带 `cache: 'no-store'`，且 `<head>` 设 `no-cache` meta，浏览器不缓存数据，**每次打开即最新、无需手动清缓存**。
