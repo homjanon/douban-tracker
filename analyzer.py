@@ -1,7 +1,7 @@
-"""研判层：LLM 三级后端 + 鲁棒提取 + 中性归纳 + 持仓/昵称判断。
+"""研判层：LLM 四级后端 + 鲁棒提取 + 中性归纳 + 持仓/昵称判断。
 
-后端优先级（DeepSeek-V4-Flash 主力 + Agnes 二级 + GLM-5.2 兜底）：
-  deepseek-v4-flash → agnes-2.0-flash → nvidia-glm-5.2
+后端优先级（智谱 GLM-4.5-Air 主力 + 商汤 DeepSeek-V4-Flash 二级 + Agnes 三级 + NVIDIA GLM-5.2 兜底）：
+  glm-4.5-air → deepseek-v4-flash → agnes-2.0-flash → nvidia-glm-5.2
 首个有 key 且调用成功即生效；全部失败回退发言摘录。
 
 与 xueqiu-tracker 的差异：
