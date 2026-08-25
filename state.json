@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-25 17:07:54",
+  "updated_at": "2026-08-25 21:15:13",
   "last_cursor": "2026-08-2517:01:39",
   "nickname_map": {
     "C50": "创业板50ETF",
@@ -175,40 +175,6 @@
         "last_note": "以40.2元买入少量仓位",
         "first_seen": "07-27",
         "current_price": "56.50（-0.18%）"
-      },
-      {
-        "name": "网易云(富国全球科技互联网QDII)",
-        "code": "022184",
-        "action": "持有",
-        "category": "美股基金",
-        "cost_price": "约10万元",
-        "market_value": "暂无",
-        "note": "保持50%仓位，四连涨",
-        "last_note": "发现昨日大跌15%，未提及操作",
-        "first_seen": "08-17",
-        "current_price": "5.2696（-0.27%）"
-      },
-      {
-        "name": "一鸣食品",
-        "code": "605179",
-        "action": "持有",
-        "category": "食品/牛奶",
-        "cost_price": "暂无",
-        "note": "",
-        "current_price": "29.94（5.42%）",
-        "last_note": "'一鸣牛来反包😂' - 对牛奶板块保持关注"
-      },
-      {
-        "name": "建信新兴市场基金",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "'建信最后一笔转换绝杀啊' - 进行最后一笔转换操作",
-        "last_note": "'建信最后一笔转换绝杀啊' - 进行最后一笔转换操…",
-        "first_seen": "08-18",
-        "current_price": "暂无"
       }
     ]
   },
