@@ -1,8 +1,7 @@
 name: 豆瓣楼主发言追踪
 
 on:
-  schedule:
-    - cron: '30 8 * * *'         # 北京时间 16:30（UTC+8 = UTC 08:30，每天含周末）
+  # 单通道（2026-09-02 起）：由 Cloudflare Worker qdii-dispatch 每天 10:00/14:00/15:30（北京时间）触发 workflow_dispatch（原 GitHub schedule 已移除）
   workflow_dispatch:            # 支持手动触发
 
 permissions:
