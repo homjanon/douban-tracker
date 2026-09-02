@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-02 20:53:15",
+  "updated_at": "2026-09-02 21:15:59",
   "last_cursor": "2026-09-0220:35:13",
   "nickname_map": {
     "C50": "创业板50ETF",
@@ -50,7 +50,9 @@
     "露露": "泸州老窖",
     "安安": "安记食品",
     "音乐世家": "富国全球科技互联网股票(QDII)A",
-    "老伯伯": "铜冠铜箔"
+    "老伯伯": "铜冠铜箔",
+    "nk": "景顺长城纳斯达克科技ETF联接(QDII)A",
+    "bk": "易方达标普信息科技指数(QDII-LOF)A"
   },
   "positions": {
     "positions": [
@@ -177,20 +179,8 @@
         "current_price": "54.32（-3.86%）"
       },
       {
-        "name": "yl(引力传媒)",
-        "code": "",
-        "action": "持有",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "换入sj(视觉中国)，认为换入标的优于原持仓",
-        "last_note": "持有，传媒板块内部调仓",
-        "first_seen": "08-27",
-        "current_price": "暂无"
-      },
-      {
-        "name": "奶茶(易点天下)",
-        "code": "",
+        "name": "易点天下",
+        "code": "301171",
         "action": "持有",
         "category": "",
         "cost_price": "暂无",
@@ -201,8 +191,8 @@
         "current_price": "暂无"
       },
       {
-        "name": "sj(视觉中国)",
-        "code": "",
+        "name": "视觉中国",
+        "code": "000681",
         "action": "持有",
         "category": "",
         "cost_price": "暂无",
@@ -211,19 +201,6 @@
         "last_note": "持有，除非有差价否则不卖",
         "first_seen": "08-28",
         "current_price": "暂无"
-      },
-      {
-        "name": "zy(掌阅科技)",
-        "code": "",
-        "action": "卖出",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "关注表现，若跟不上sj则转换",
-        "last_note": "清仓，表示'除非有差价，不然不卖，重要的是高仓位'",
-        "first_seen": "08-28",
-        "current_price": "暂无",
-        "sell_date": "09-02"
       }
     ]
   },
