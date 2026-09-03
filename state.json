@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-03 15:32:52",
+  "updated_at": "2026-09-03 21:49:00",
   "last_cursor": "2026-09-0315:30:27",
   "nickname_map": {
     "C50": "创业板50ETF",
@@ -52,7 +52,8 @@
     "音乐世家": "富国全球科技互联网股票(QDII)A",
     "老伯伯": "铜冠铜箔",
     "nk": "景顺长城纳斯达克科技ETF联接(QDII)A",
-    "bk": "易方达标普信息科技指数(QDII-LOF)A"
+    "bk": "易方达标普信息科技指数(QDII-LOF)A",
+    "txx": "天下秀"
   },
   "positions": {
     "positions": [
@@ -162,7 +163,7 @@
         "action": "持有",
         "first_seen": "07-03",
         "category": "红利/银行",
-        "cost_price": "约30元",
+        "cost_price": "30",
         "last_note": "红利防御仓稳定持有",
         "current_price": "41.07（0.49%）"
       },
@@ -171,7 +172,7 @@
         "code": "688825",
         "action": "持有",
         "category": "存储",
-        "cost_price": "约40.2元",
+        "cost_price": "40.2",
         "market_value": "暂无",
         "note": "",
         "last_note": "以40.2元买入少量仓位",
@@ -182,7 +183,7 @@
         "name": "易点天下",
         "code": "301171",
         "action": "持有",
-        "category": "",
+        "category": "传媒",
         "cost_price": "暂无",
         "market_value": "暂无",
         "note": "前两天买入，今日表现漂亮，'前两天没白买你'",
@@ -194,13 +195,29 @@
         "name": "视觉中国",
         "code": "000681",
         "action": "持有",
-        "category": "",
+        "category": "传媒",
         "cost_price": "暂无",
         "market_value": "暂无",
         "note": "传媒板块内部调仓，火箭发射",
         "last_note": "持有，除非有差价否则不卖",
         "first_seen": "08-28",
         "current_price": "16.73（-1.59%）"
+      },
+      {
+        "name": "省广集团",
+        "code": "002400",
+        "action": "买入",
+        "category": "传媒",
+        "cost_price": "6.61",
+        "note": ""
+      },
+      {
+        "name": "天下秀",
+        "code": "600556",
+        "action": "买入",
+        "category": "传媒",
+        "cost_price": "4.80",
+        "note": ""
       }
     ]
   },
