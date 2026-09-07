@@ -248,7 +248,7 @@ python tracker.py
 
 - 时区：所有时间均为北京时间（UTC+8）。
 
-- **图片保留规则（2026-08-20 起）**：发言图片存 `data/images/YYYY-MM-DD/<hash>.jpg`（按下载日期分子目录），每轮运行清理超过 `KEEP_IMG_DAYS`（默认 **30 天**，可用 Secret `KEEP_IMG_DAYS` 覆盖）的旧日期目录。按目录名判断、**不依赖 mtime**（git checkout 会刷新文件修改时间，旧版 mtime 方案在 CI 永不生效导致图片无限累积）。注意：超过保留期的旧报告/IMA 文档中的图片链接（指向 GitHub raw）会 404。
+- **图片保留规则（2026-08-20 起）**：发言图片存 `data/images/YYYY-MM-DD/<hash>.jpg`（按下载日期分子目录），每轮运行清理超过 `KEEP_IMG_DAYS`（默认 **30 天**，可用 Secret `KEEP_IMG_DAYS` 覆盖）的旧日期目录。按目录名判断、**不依赖 mtime**（git checkout 会刷新文件修改时间，旧版 mtime 方案在 CI 永不生效导致图片无限累积）。注意：超过保留期的旧报告中的图片链接（指向 GitHub raw）会 404。
 
 - Pages 看板右上角「? 手动触发更新」按钮跳转 Actions 页面，点 Run workflow 即可即时运行（免密钥、安全）。
 
