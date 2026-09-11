@@ -95,6 +95,18 @@ function render(d) {
         h += isMdTable(ov[k]) ? mdTable(ov[k]) : '<pre>'+esc(ov[k])+'</pre>';
       }
     });
+    // 画像污染预警（2026-09-11 新增）：非空表示 LLM 产出与画像长片段重合，
+    // 即可能又在复述历史观点而非依据当日发言，需人工留意。
+    const warns = d.overview_warnings || [];
+    if (warns.length) {
+      h += '<div style="margin-top:10px;padding:8px 10px;border-left:3px solid #e6a23c;'
+         + 'background:#fdf6ec;font-size:13px;line-height:1.7">'
+         + '⚠️ <b>污染预警</b>：检测到产出与投资画像存在长片段重合，'
+         + '可能未严格依据当日发言，请留意：'
+         + '<ul style="margin:6px 0 0 18px;padding:0">';
+      warns.forEach(w => { h += '<li>' + esc(w) + '</li>'; });
+      h += '</ul></div>';
+    }
     h += '</div>';
   }
 

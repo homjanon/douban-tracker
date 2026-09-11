@@ -745,6 +745,8 @@ def main():
     prof_changes = update_investor_profile(overview, display, today)
     # 消费后立即移除内部字段，避免 profile_updates 泄露进 latest.json/前端
     overview.pop("profile_updates", None)
+    # 污染护栏结果单独取出（不放进 overview，避免 5 子板块结构被前端误渲染）
+    overview_warnings = overview.pop("overview_warnings", []) or []
     for c in prof_changes:
         print(f"[画像更新] {c}")
 
@@ -774,6 +776,7 @@ def main():
         "showing_fallback": showing_fallback,
         "daily_summary": summary,
         "overview": overview,                       # 今日总览 5 子板块
+        "overview_warnings": overview_warnings,     # 画像污染预警（空=正常；非空表示 LLM 疑似复述画像）
         "positions": st["positions"],              # 持仓追踪（已动态更新）
         "investor_profile": load_investor_profile(),  # 投资风格分析（已增量更新）
         "nickname_rules": load_nickname_rules(),      # 昵称规律（结构化列表）
