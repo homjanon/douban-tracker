@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-09-14 14:01:50",
+  "fetched_at": "2026-09-14 15:31:42",
   "user": {
     "name": "不知道还能说啥",
     "count": 0
@@ -66,7 +66,7 @@
         "category": "美股基金",
         "cost_price": "暂无",
         "last_note": "持有",
-        "current_price": "1.6946（-2.34%）"
+        "current_price": "1.7071（0.74%）"
       },
       {
         "name": "建信新兴市场混合(QDII)A",
@@ -86,7 +86,7 @@
         "category": "红利/银行",
         "cost_price": "暂无",
         "last_note": "持有",
-        "current_price": "41.76（0.99%）"
+        "current_price": "41.83（1.16%）"
       },
       {
         "name": "易点天下",
@@ -98,7 +98,7 @@
         "note": "",
         "last_note": "已操作，有难必支援",
         "first_seen": "08-27",
-        "current_price": "33.30（-3.92%）"
+        "current_price": "33.57（-3.14%）"
       },
       {
         "name": "视觉中国",
@@ -120,7 +120,7 @@
         "cost_price": "暂无",
         "note": "",
         "last_note": "传媒板块内部调仓买入",
-        "current_price": "6.54（-1.21%）"
+        "current_price": "6.55（-1.06%）"
       },
       {
         "name": "天下秀",
@@ -130,7 +130,7 @@
         "cost_price": "暂无",
         "note": "",
         "last_note": "准备10.15涨停挂单",
-        "current_price": "4.72（-0.63%）"
+        "current_price": "4.73（-0.42%）"
       },
       {
         "name": "今世缘",
@@ -139,7 +139,7 @@
         "category": "白酒",
         "cost_price": "暂无",
         "note": "",
-        "current_price": "28.94（0.91%）",
+        "current_price": "28.99（1.08%）",
         "last_note": "指引不好，爱美客、珀莱雅已拐弯，建议控制仓位"
       }
     ]
