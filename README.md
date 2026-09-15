@@ -2,7 +2,7 @@
 
 
 
-基于 **Cloudflare Worker（qdii-dispatch）+ Pages** 的豆瓣楼主发言自动追踪工具。**每日北京时间 10:00/14:00/15:30（含周末）** 自动触发（GitHub Actions 手动触发亦可即时运行），抓取楼主发言 → LLM 研判 → 生成结构化每日简报 → 推送至仓库并发布 Pages 看板。
+基于 **Cloudflare Worker（qdii-dispatch）+ Pages** 的豆瓣楼主发言自动追踪工具。**工作日北京时间 11:00/16:00、周末 16:00** 自动触发（GitHub Actions 手动触发亦可即时运行），抓取楼主发言 → LLM 研判 → 生成结构化每日简报 → 推送至仓库并发布 Pages 看板。
 
 
 
@@ -188,7 +188,7 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 
 douban-tracker/
 
-├── .github/workflows/track.yml   # 由 Cloudflare qdii-dispatch 触发（每天 10:00/14:00/15:30 · 无 schedule）
+├── .github/workflows/track.yml   # 由 Cloudflare qdii-dispatch 触发（工作日 11:00/16:00 · 周末 16:00 · 无 schedule）
 
 ├── config.py                     # 三级 LLM 后端 + 双模式抓取配置（SCRAPE_MODE / 两套 URL）
 
