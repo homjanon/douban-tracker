@@ -91,8 +91,7 @@ function render(d) {
     secs.forEach(([k, t]) => {
       if (ov[k]) {
         h += '<h3>'+t+'</h3>';
-        // 含 Markdown 表格则渲染成 <table>，否则原样 <pre>
-        h += isMdTable(ov[k]) ? mdTable(ov[k]) : '<pre>'+esc(ov[k])+'</pre>';
+        h += renderOvSection(ov[k]);
       }
     });
     // 画像污染预警（2026-09-11 新增）：非空表示 LLM 产出与画像长片段重合，
@@ -170,6 +169,54 @@ function render(d) {
   document.getElementById('content').innerHTML = h;
 }
 
+// 今日总览各区块渲染入口（2026-09-17）。
+// 优先走表格；非表格内容走 mdLite() 轻量 Markdown，
+//    避免原先的 <pre> 把 **加粗** 与 - 列表符号原样暴露给用户。
+function renderOvSection(s) {
+  if (isMdTable(s)) return mdTable(s);
+  return mdLite(s);
+}
+
+// 轻量 Markdown 渲染：只支持本仓产出实际用到的语法（保守可靠，不引入第三方）。
+//   - **文字**          → <strong>
+//   - - 项目 / 无序列表 → <ul><li>
+//   - 其余行            → 段落，段内换行保留
+// 所有文本均经 esc() 转义，不存在 HTML 注入风险。
+function mdLite(s) {
+  const lines = String(s).split('\n');
+  let out = '', inList = false, buf = [];
+
+  const flushPara = () => {
+    if (buf.length) {
+      out += '<p>' + buf.map(inlineMd).join('<br>') + '</p>';
+      buf = [];
+    }
+  };
+  const closeList = () => { if (inList) { out += '</ul>'; inList = false; } };
+
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, '');
+    if (!line.trim()) { flushPara(); closeList(); continue; }
+    const li = line.match(/^\s*[-*•]\s+(.*)$/);
+    if (li) {
+      flushPara();
+      if (!inList) { out += '<ul>'; inList = true; }
+      out += '<li>' + inlineMd(li[1]) + '</li>';
+    } else {
+      closeList();
+      buf.push(line);
+    }
+  }
+  flushPara(); closeList();
+  return out || '<p>' + esc(s) + '</p>';
+}
+
+// 行内 Markdown：**加粗**（非贪婪、支持多段）。先转义再替换占位，防止注入。
+function inlineMd(s) {
+  const e = esc(s);
+  return e.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
 // 单元格支持两种形态：
 //   字符串 / {text:...}        → 普通转义单元格
 //   {text:..., cls:...}        → 按 cls 上色、内容仍转义
@@ -239,26 +286,38 @@ function mentionCell(first_seen, last_note, cost_price) {
   return parts.join('；') || '暂无';
 }
 
-// 判断文本是否含 Markdown 表格（有表头行 + 分隔行 |---|）
+// 判断文本是否为 Markdown 表格。
+// 两级判定（2026-09-17）：
+//   ① 严格模式：有表头行 + 分隔行 |---| → 正规 Markdown 表格；
+//   ② 宽松兑底：首行以 | 开头且含 >=2 列 → 也当表格。
+// 原因：主力模型换成 glm-4.7 后不再输出 |---| 分隔行（实测 09-17 两个表格全缺），
+//   仅靠严格模式会退化为 <pre> 纯文本。
+//   后端 tracker.py 已做 _normalize_md_table() 归一化，此处为防御性双保险。
 function isMdTable(s) {
   if (!s || typeof s !== 'string') return false;
   const lines = s.trim().split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return false;
+  // ① 严格：任意行后跟分隔行
   for (let i = 0; i + 1 < lines.length; i++) {
     if (lines[i].includes('|') && /^\|[\s:|-]+\|$/.test(lines[i + 1])) return true;
   }
-  return false;
+  // ② 宽松兑底：首行开头为 | 且至少 2 列
+  return lines[0].startsWith('|') && lines[0].split('|').length - 2 >= 2;
 }
 
 // 把 Markdown 表格文本渲染为 <table>
+// 2026-09-17：容错增强 —— 若无分隔行（glm-4.7 起），把首行当表头、其余当数据行。
 function mdTable(s) {
   const lines = s.trim().split('\n').map(l => l.trim()).filter(Boolean);
   const rows = [];
+  let hasSep = false;
   for (const line of lines) {
-    if (/^\|[\s:|-]+\|$/.test(line)) continue;        // 跳过分隔行
+    if (/^\|[\s:|-]+\|$/.test(line)) { hasSep = true; continue; }   // 跳过分隔行
     const cells = line.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
     rows.push(cells);
   }
   if (!rows.length) return '<pre>' + esc(s) + '</pre>';
+  // 无分隔行时，首行已经是表头，table() 会把 rows[0] 当表头处理，行为一致
   return table(rows);
 }
 // 把发言文本中的 ![图片](url) 转为 <img>，其余转义+换行

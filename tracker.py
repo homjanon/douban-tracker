@@ -555,6 +555,40 @@ def _positions_table(positions):
     return "\n".join(L)
 
 
+def _normalize_md_table(text):
+    """为缺分隔行的 Markdown 表格补上分隔行（2026-09-17 新增）。
+
+    背景：主力模型由 glm-4.5-air 换成 glm-4.7 后，输出 Markdown 表格时
+      只给表头行 + 数据行、不再输出 |---|---| 分隔行。
+      实测样本：08-22~09-15（glm-4.5-air）26 天 46/46 个表格均带分隔行；
+      09-17（glm-4.7 首日）2/2 个表格全部缺失 —— 属模型行为差异。
+    后果：标准 Markdown（含 GitHub / IMA / 本仓 docs/index.html 的
+      isMdTable()）都要求分隔行才认表格，缺失即退化为纯文本，
+      用户看到的是带管道符的源码。
+    做法：在渲染层做归一化 —— 首行以 | 开头且列数 >=2、第 2 行不是分隔行时，
+      按表头列数补一行 |---|---|。已有分隔行则原样返回（幂等）。
+      归一化后无论模型给不给分隔行，产出恒为合法 Markdown，
+      网页看板 / 仓库 .md 视图 / 其他消费者三处同时受益。
+    """
+    if not text or not isinstance(text, str):
+        return text
+    lines = text.strip().split("\n")
+    if len(lines) < 2:
+        return text
+    head = lines[0].strip()
+    # 表头行：以 | 开头且含 >=2 列（>=3 个 |）
+    if not head.startswith("|") or head.count("|") < 3:
+        return text
+    # 已有分隔行 → 不动（幂等）
+    if re.match(r'^\|[\s:|-]+\|$', lines[1].strip()):
+        return text
+    ncol = head.count("|") - 1
+    if ncol < 2:
+        return text
+    sep = "|" + "|".join(["---"] * ncol) + "|"
+    return "\n".join([lines[0], sep] + lines[1:])
+
+
 def build_report(ts, name, summary, posts, analysis, overview, today_count, total_archived):
     """渲染 IMA 同构 6 板块日报 Markdown。"""
     L = [f"# 📋 楼主每日发言推送",
@@ -587,6 +621,9 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
     for _key, _title in _ov_titles:
         L.append(_title)
         _val = (overview.get(_key) or "").strip()
+        # 表格归一化（2026-09-17）：glm-4.7 起不输出 |---|---| 分隔行，
+        # 不补则 GitHub / 网页看板均退化为纯文本。幂等，已有分隔行不受影响。
+        _val = _normalize_md_table(_val)
         L.append(_val if _val else "（本次 LLM 未产出，建议重跑）")
         L.append("")
 
@@ -670,7 +707,7 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
 
     L.append(f"\n*🤖 自动生成于 {ts} ｜ 豆瓣楼主发言追踪*")
     md = "\n".join(L)
-    # 图片相对路径 → 公网绝对 URL（仓库 md 与 IMA 知识库均可渲染；commit 后即生效，无 404 窗口）
+    # 图片相对路径 → 公网绝对 URL（仓库 md 渲染可用；commit 后即生效，无 404 窗口）
     md = re.sub(r'!\[([^\]]*)\]\((data/images/[^)]+)\)',
                 r'![\1](https://raw.githubusercontent.com/homjanon/douban-tracker/main/\2)',
                 md)
