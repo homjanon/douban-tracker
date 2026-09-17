@@ -1,7 +1,7 @@
 """研判层：LLM 四级后端 + 鲁棒提取 + 中性归纳 + 持仓/昵称判断。
 
-后端优先级（智谱 GLM-4.5-Air 主力 + 商汤 DeepSeek-V4-Flash 二级 + Agnes 三级 + NVIDIA GLM-5.2 兜底）：
-  glm-4.5-air → deepseek-v4-flash → agnes-2.0-flash → nvidia-glm-5.2
+后端优先级（智谱 GLM-4.7 主力 + 商汤 DeepSeek-V4-Flash 二级 + Agnes 2.5 三级 + Gemini 3 Flash 兜底）：
+  glm-4.7 → deepseek-v4-flash → agnes-2.5-flash → gemini-3-flash-preview
 首个有 key 且调用成功即生效；全部失败回退发言摘录。
 
 与 xueqiu-tracker 的差异：
@@ -18,6 +18,19 @@ import requests
 
 from config import BACKENDS, TIMEOUT, USER_HINTS, USER_HINTS as _HINTS
 from nickname_rules import load_nickname_rules, rules_to_text
+
+# ============ 实际生效后端记录（2026-09-17 新增）============
+# 背景：BACKENDS 的 name 字段原先只用于日志打印、不落库，导致产物里查不到
+#   "本轮到底哪家模型跑的"。08-26/09-13/09-16 三次全部后端失败时，无法从产物
+#   反查故障方，只能靠"四个后端全挂才可能全空"反推。
+# 做法：call_multi 每次成功即记下命中的 backend name，tracker 写入 latest.json。
+# 语义：记录的是【本进程内最后一次成功】的后端。一日内多次调用若走不同后端，
+#   取最后一次——足以判断"整体是否降级"，不追求逐次精确。
+LAST_BACKEND = None
+
+def get_last_backend():
+    """返回本进程内最后一次成功的后端 name（用于写入产物，便于故障追溯）。"""
+    return LAST_BACKEND
 
 # 投资风格画像（楼主历史发言提炼，作研判上下文，避免误判其操作意图）
 _PROFILE_FILE = os.getenv("PROFILE_FILE", "investor_profile.json")
@@ -80,17 +93,19 @@ def _post(backend, messages):
 def call_multi(messages, budget=90):
     """按 BACKENDS 顺序尝试，返回首个成功内容；全失败返回 None。
     budget=总时限(秒)：2026-08-20 加固，防止后端全挂时逐轮超时叠加拖垮 job。"""
+    global LAST_BACKEND
     start = time.monotonic()
     for b in BACKENDS:
         c = _post(b, messages)
         if c:
+            LAST_BACKEND = b["name"]      # 2026-09-17：留痕，供产物追溯
             print(f"[analyzer] ✅ {b['name']} 调用成功（{b['model']}）")
             return c
         if time.monotonic() - start >= budget:
             print(f"[analyzer] ⚠️ 已达总时限 {budget}s，放弃剩余后端")
             break
     print("[analyzer] ⚠️ 所有后端均未成功，回退摘录")
-    return None
+    return None   # 注：LAST_BACKEND 保持 None，产物侧即标记"无成功后端"
 
 
 def _clean_think(s):

@@ -156,21 +156,33 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 
 
 
-### LLM 四级后端（智谱 GLM-4.5-Air 主力 + DeepSeek-V4-Flash 二级 + Agnes 三级 + NVIDIA GLM-5.2 兜底）
+### LLM 四级后端（智谱 GLM-4.7 主力 + DeepSeek-V4-Flash 二级 + Agnes 2.5 三级 + Gemini 3 Flash 兜底）
 
 按顺序尝试，首个有 key 且成功即生效；**每日 3 次 LLM 调用**（摘要 / 持仓昵称研判 / 今日总览+画像修订合并，2026-08-20 优化，原先 4 次）：
 
-1. **智谱 AI GLM-4.5-Air** `glm-4.5-air`（OpenAI 兼容，`ZHIPU_API_KEY`，主力；`thinking` 关闭 + `max_tokens=12000`，参考 qiugecaozuo：关思考 content 472→5306 字）
+1. **智谱 AI GLM-4.7** `glm-4.7`（OpenAI 兼容，`ZHIPU_API_KEY`，主力；`thinking` 关闭 + `max_tokens=12000`，参考 qiugecaozuo：关思考 content 472→5306 字）
 
 2. **商汤 DeepSeek-V4-Flash** `deepseek-v4-flash`（复用 `SENSENOVA_API_KEY`，商汤平台，二级；`reasoning_effort=low` 轻思考 + `max_tokens=12000`，实测 12s→2.6s 且 content 稳定非空）
 
-3. **Agnes AI** `agnes-2.0-flash`（免费多模态，三级）
+3. **Agnes AI** `agnes-2.5-flash`（免费多模态，三级）
 
-4. NVIDIA `z-ai/glm-5.2`（免费，兜底，参考 portfolio 仓调用方式）
+4. **Google Gemini 3 Flash** `gemini-3-flash-preview`（`GEMINI_API_KEY`，免费，1500 RPD 独立配额桶，兜底）
+
+   > ⚠️ 模型名**必须带 `-preview` 后缀**：实测无后缀 `gemini-3-flash` 会返回 **404**（2026-09-16 news-feed 仓验证）。
 
 
 
 > **调用次数与稳定性（2026-08-20 优化）**：`analyzer.call_multi` 加 90s 总时限（后端全挂快速降级，不再逐后端叠加超时）；画像更新并入「今日总览」一次调用（`profile_updates` 字段），不再单独调 LLM。
+
+> **模型链变更记录（2026-09-17）**：
+> - **① 层**：`glm-4.5-air` → **`glm-4.7`**。动因：智谱官方文档明确「**GLM-4.5、GLM-4.5-X 模型即将下线**，建议选择最新旗舰文本模型 GLM-4.7」。接入参数完全兼容（Base URL / endpoint / `messages` / `thinking.type` 写法均不变），仅模型名变更。上下文由 128K 提升至 200K、最大输出由 96K 提升至 128K。
+> - **③ 层**：`agnes-2.0-flash` → **`agnes-2.5-flash`**。动因：Agnes 官方已将 2.0 标记「已废弃」，2.5 为官方指定继任者（仅改模型名）。
+> - **④ 层**：NVIDIA `z-ai/glm-5.2` → **Google `gemini-3-flash-preview`**。动因：NVIDIA 位近一个月不稳定且 429 限流频发（详见下条），改用已在 news-feed 验证稳定的 Gemini 3 Flash。
+> - **顺带清理**：随 NVIDIA 位移除，其专用的 `PRIMARY_BASE_URL` / `PRIMARY_MODEL` / `PRIMARY_TIMEOUT` 环境变量一并删除，不留孤儿变量（避免「配了不生效」的困惑）。
+
+> **故障追溯能力新增（2026-09-17）**：产物 `latest.json` 新增 **`llm_backend`** 字段，记录本轮**实际生效的后端名**（如 `zhipu-glm-4.7`）；若四个后端全失败、已回退摘录，该字段为 `null`。
+> 增设原因：`BACKENDS[].name` 原先**只用于日志打印、不落库**，导致 `2026-08-26` / `09-13` / `09-16` 三次「今日总览 5 区块全空」故障时**无法从产物反查是哪家模型挂的**，只能靠「四个后端全挂才可能全空」反推。现可直接查该字段定位。
+> 语义说明：记录的是**本进程内最后一次成功**的后端。一日内多次调用若走了不同后端，取最后一次——足以判断「整体是否降级」，不追求逐次精确。
 
 
 
@@ -190,7 +202,7 @@ douban-tracker/
 
 ├── .github/workflows/track.yml   # 由 Cloudflare qdii-dispatch 触发（工作日 11:00/16:00 · 周末 16:00 · 无 schedule）
 
-├── config.py                     # 三级 LLM 后端 + 双模式抓取配置（SCRAPE_MODE / 两套 URL）
+├── config.py                     # 四级 LLM 后端 + 双模式抓取配置（SCRAPE_MODE / 两套 URL）
 
 ├── scraper.py                    # 豆瓣 HTTP+cookie 抓取（无 Playwright/WAF）
 
@@ -243,13 +255,13 @@ douban-tracker/
 
 | `SCRAPE_MODE` | `topic`（默认/开启）或 `group`（切回旧模式） |
 
-| `AGNES_API_KEY` | 二级后端 key（agnes-2.0-flash） |
+| `AGNES_API_KEY` | 三级后端 key（agnes-2.5-flash） |
 
-| `NVIDIA_API_KEY` | 兜底后端 key（glm-5.2） |
+| `GEMINI_API_KEY` | 兜底后端 key（gemini-3-flash-preview） |
 
 | `SENSENOVA_API_KEY` | 二级后端 key（DeepSeek-V4-Flash，商汤平台） |
 
-| `ZHIPU_API_KEY` | 主力后端 key（智谱 GLM-4.5-Air，OpenAI 兼容） |
+| `ZHIPU_API_KEY` | 主力后端 key（智谱 GLM-4.7，OpenAI 兼容） |
 | `KEEP_IMG_DAYS` | 图片保留天数（默认 `30`；发言图片按日期分目录，过期自动清理） |
 
 
@@ -264,7 +276,7 @@ pip install -r requirements.txt
 
 export DOUBAN_COOKIE=... DOUBAN_USER_STATUSES_URL=... DOUBAN_TARGET_USER=... SCRAPE_MODE=topic
 
-export AGNES_API_KEY=...
+export ZHIPU_API_KEY=... SENSENOVA_API_KEY=... AGNES_API_KEY=... GEMINI_API_KEY=...
 
 python tracker.py
 

@@ -17,7 +17,7 @@ from config import (DATA_DIR, REPORT_DIR, STATE_FILE, RECENT_N,
 from scraper import scrape_user
 from analyzer import (daily_summary, analyze_positions_and_nicknames,
                       build_daily_overview, load_investor_profile,
-                      update_investor_profile)
+                      update_investor_profile, get_last_backend)
 from nickname_rules import load_nickname_rules, rules_to_text
 from query_stock import query_stock
 
@@ -770,6 +770,9 @@ def main():
     ts = now.strftime("%Y-%m-%d %H:%M:%S")
     latest = {
         "fetched_at": ts,
+        # 本轮实际生效的 LLM 后端（2026-09-17 新增）：None 表示四个后端全失败、已回退摘录。
+        # 用途：08-26/09-13/09-16 三次全空故障时无法从产物反查故障方，此项即为追溯入口。
+        "llm_backend": get_last_backend(),
         "user": {"name": name, "count": len(display)},
         "today_count": len(display),
         "total_archived": st["total_archived"],

@@ -1,10 +1,10 @@
 """配置：从环境变量读取，缺失时用默认值。
 
-LLM 后端优先级（智谱 GLM-4.5-Air 主力 + DeepSeek-V4-Flash 二级 + Agnes 三级 + NVIDIA GLM-5.2 兜底）：
-  1) 智谱 AI GLM-4.5-Air（glm-4.5-air，ZHIPU_API_KEY）—— 主力（OpenAI 兼容）
+LLM 后端优先级（智谱 GLM-4.7 主力 + DeepSeek-V4-Flash 二级 + Agnes 2.5 三级 + Gemini 3 Flash 兜底）：
+  1) 智谱 AI GLM-4.7（glm-4.7，ZHIPU_API_KEY）—— 主力（OpenAI 兼容）
   2) 商汤 DeepSeek-V4-Flash（deepseek-v4-flash，复用 SENSENOVA_API_KEY）—— 二级
-  3) Agnes AI agnes-2.0-flash —— 免费多模态，三级
-  4) NVIDIA GLM-5.2（z-ai/glm-5.2，参考 portfolio 仓调用方式）—— 免费，兜底
+  3) Agnes AI agnes-2.5-flash —— 免费多模态，三级
+  4) Google Gemini 3 Flash（gemini-3-flash-preview，GEMINI_API_KEY）—— 免费，兜底
 
 抓取：豆瓣话题页 + DOUBAN_COOKIE 登录态（HTTP 直连，无 WAF/Playwright）。
 状态：state.json 增量游标 + 昵称映射 + 持仓（每轮 commit 回仓库持久化）。
@@ -26,15 +26,18 @@ SCRAPE_MODE = os.getenv("SCRAPE_MODE", "topic").strip().lower()
 
 HEADLESS = os.getenv("HEADLESS", "false").lower() != "false"
 
-# ============ LLM 后端（智谱 GLM-4.5-Air 主力 + DeepSeek-V4-Flash 二级 + Agnes 三级 + NVIDIA GLM-5.2 兜底）============
+# ============ LLM 后端（智谱 GLM-4.7 主力 + DeepSeek-V4-Flash 二级 + Agnes 2.5 三级 + Gemini 3 Flash 兜底）============
 BACKENDS = [
     {
-        # ① 主力：智谱 AI GLM-4.5-Air（OpenAI 兼容，ZHIPU_API_KEY）
+        # ① 主力：智谱 AI GLM-4.7（OpenAI 兼容，ZHIPU_API_KEY）
+        #  2026-09-17 由 glm-4.5-air 升级：官方文档明确「GLM-4.5、GLM-4.5-X 模型即将下线，
+        #    建议选择最新旗舰文本模型 GLM-4.7」。接入参数完全兼容（Base URL / endpoint /
+        #    messages / thinking.type 写法均不变），仅模型名变更。上下文 200K、最大输出 128K。
         #  thinking 关闭（参考 qiugecaozuo 实测：关思考 content 472→5306 字）+ max_tokens 给足防截断
-        "name": "zhipu-glm-4.5-air",
+        "name": "zhipu-glm-4.7",
         "base_url": os.getenv("ZHIPU_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"),
         "api_key": os.getenv("ZHIPU_API_KEY", ""),
-        "model": os.getenv("ZHIPU_MODEL", "glm-4.5-air"),
+        "model": os.getenv("ZHIPU_MODEL", "glm-4.7"),
         "timeout": int(os.getenv("ZHIPU_TIMEOUT", "120")),
         "max_tokens": 12000,
         "extra": {"thinking": {"type": "disabled"}},
@@ -52,20 +55,24 @@ BACKENDS = [
     },
     {
         # ③ 三级：Agnes AI 免费多模态
-        "name": "agnes-2.0-flash",
+        #  2026-09-17：agnes-2.0-flash 已被官方标记「已废弃」，升级为 agnes-2.5-flash（仅改模型名）
+        "name": "agnes-2.5-flash",
         "base_url": os.getenv("AGNES_BASE_URL", "https://apihub.agnes-ai.com/v1"),
         "api_key": os.getenv("AGNES_API_KEY", ""),
-        "model": os.getenv("AGNES_MODEL", "agnes-2.0-flash"),
+        "model": os.getenv("AGNES_MODEL", "agnes-2.5-flash"),
         "timeout": int(os.getenv("AGNES_TIMEOUT", "120")),
         "max_tokens": 12000,
     },
     {
-        # ④ 兜底：NVIDIA GLM-5.2（免费，参考 portfolio 仓调用方式）
-        "name": "nvidia-glm-5.2",
-        "base_url": os.getenv("PRIMARY_BASE_URL", "https://integrate.api.nvidia.com/v1"),
-        "api_key": os.getenv("NVIDIA_API_KEY", ""),
-        "model": os.getenv("PRIMARY_MODEL", "z-ai/glm-5.2"),
-        "timeout": int(os.getenv("PRIMARY_TIMEOUT", "120")),
+        # ④ 兜底：Google Gemini 3 Flash（免费，1500 RPD 独立配额桶）
+        #  2026-09-17 顶替被移除的 NVIDIA GLM-5.2：后者近一个月不稳定（08-26/09-13/09-16
+        #    三次全部后端失败的日期高度相关），且 429 限流频发。
+        #  ⚠️ 模型名必须带 -preview 后缀：实测无后缀 gemini-3-flash 会 404（2026-09-16 news-feed 验证）。
+        "name": "gemini-3-flash",
+        "base_url": os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai"),
+        "api_key": os.getenv("GEMINI_API_KEY", ""),
+        "model": os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+        "timeout": int(os.getenv("GEMINI_TIMEOUT", "120")),
         "max_tokens": 12000,
     },
 ]
