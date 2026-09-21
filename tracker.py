@@ -590,6 +590,29 @@ def _normalize_md_table(text):
     return "\n".join([lines[0], sep] + lines[1:])
 
 
+def _normalize_md_list(text):
+    """为「挤成一行」的无序列表补换行（2026-09-21 新增）。
+
+    背景：与 _normalize_md_table 同源——主力模型换 glm-4.7 后，输出无序列表
+      时不再用 \n 分隔条目，而是把 '- **板块**：理由' 直接首尾相接。
+      实测 09-21：favored_sectors 5 条应有 4 个换行 → 实际 0 个；
+                  risk_warnings 4 条应有 3 个换行 → 实际 0 个。
+      字符级核对确认 '。- ' 之间零空格（U+3002 直接接 U+002D）。
+    后果：mdLite()（网页看板）与标准 Markdown 均按 \n 切行，整段退
+      化为单个 <li>，用户看到的是挤在一起的一大段。
+    做法：仅将**行内**的 '- ' 断为行首 '- '，锚点限定为 - ** / - 「 两种
+      （本仓两种列表的实际格式），正文中的连字符不受影响。幂等。
+
+    ⚠️ 锚点故意保守：只认 '- **' 与 '- 「' 两种，不匹配裸 '- ' ——
+      避免误伤正文里的连字符（如「新能源-光伏」）。
+    """
+    if not text or not isinstance(text, str):
+        return text
+    return "\n".join(
+        re.sub(r'(\S)\s*-\s+(?=\*\*|「)', r'\1\n- ', ln)
+        for ln in text.split("\n"))
+
+
 def build_report(ts, name, summary, posts, analysis, overview, today_count, total_archived):
     """渲染 IMA 同构 6 板块日报 Markdown。"""
     L = [f"# 📋 楼主每日发言推送",
@@ -625,6 +648,7 @@ def build_report(ts, name, summary, posts, analysis, overview, today_count, tota
         # 表格归一化（2026-09-17）：glm-4.7 起不输出 |---|---| 分隔行，
         # 不补则 GitHub / 网页看板均退化为纯文本。幂等，已有分隔行不受影响。
         _val = _normalize_md_table(_val)
+        _val = _normalize_md_list(_val)   # 2026-09-21：无序列表归一化
         L.append(_val if _val else "（本次 LLM 未产出，建议重跑）")
         L.append("")
 

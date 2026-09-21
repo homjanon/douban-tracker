@@ -177,13 +177,25 @@ function renderOvSection(s) {
   return mdLite(s);
 }
 
+// 行内无序列表切分（2026-09-21 新增，防御性双保险）。
+// 背景：主力模型换 glm-4.7 后输出无序列表时不用 \n 分隔，
+//   把 '- **板块**：理由' 首尾相接成一行。后端 tracker.py 已做
+//   _normalize_md_list() 归一化，此处为防御性双保险（同\u00a0isMdTable 做法）。
+// 锚点保守：仅认 '- **' 与 '- 「' 两种，不误伤正文连字符。
+function _splitInlineList(s) {
+  if (!s || typeof s !== 'string') return s;
+  return s.split('\n').map(ln =>
+    ln.replace(/(\S)\s*-\s+(?=\*\*|「)/g, '$1\n- ')
+  ).join('\n');
+}
+
 // 轻量 Markdown 渲染：只支持本仓产出实际用到的语法（保守可靠，不引入第三方）。
 //   - **文字**          → <strong>
 //   - - 项目 / 无序列表 → <ul><li>
 //   - 其余行            → 段落，段内换行保留
 // 所有文本均经 esc() 转义，不存在 HTML 注入风险。
 function mdLite(s) {
-  const lines = String(s).split('\n');
+  const lines = _splitInlineList(String(s)).split('\n');
   let out = '', inList = false, buf = [];
 
   const flushPara = () => {
