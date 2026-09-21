@@ -38,6 +38,21 @@ _PROFILE_FILE = os.getenv("PROFILE_FILE", "investor_profile.json")
 _PROFILE_HISTORY_FILE = os.getenv("PROFILE_HISTORY_FILE", "investor_history.json")
 _HISTORY_KEEP_DAYS = 90  # 归档保留天数，自动裁剪更早的快照
 
+# ============ 画像演化观测参数（2026-09-21 新增，纯观测）============
+# 背景：investor_history.json 自建立起「只写不读」，快照从未被任何代码消费。
+#   本组参数用于把画像的逐日演化变成可对照的数值，落库到 latest.json。
+#
+# ⚠️ 设计定调：**只观测，不告警**（2026-09-21 修订）。
+#   初版曾按「长度波动 ≥3 倍」判为异常并输出告警，实测证明该判据不成立：
+#     - 32 天窗口的 9.9 倍波动绝大部分来自 07 月「5 维→4 维」的维度重构残留；
+#     - 09-19 一次「把冗余描述压缩为精炼表述」的正常改写（+4/-4 行）也会推高
+#       长度波动，而改写后的文本质量实际更高（经 git patch 逐条核对）。
+#   即：画像本就是「重写式修订」模式而非「增量修订」，长度变化不等于故障。
+#   真正需要防的是【污染】（产出复述画像），那个由 _detect_profile_leak 负责；
+#   漂移是另一回事，且不一定是坏事——故本函数只记录、不判定、不打印告警。
+_PROFILE_DRIFT_DAYS = int(os.getenv("PROFILE_DRIFT_DAYS", "7"))
+_DRIFT_CHG_SIM = 0.95     # 相邻日相似度低于此值 → 记为「显著调整」
+
 
 def load_investor_profile():
     """加载投资风格画像；缺失或损坏时返回空字符串（不影响主流程）。"""
@@ -434,6 +449,7 @@ def _detect_profile_leak(overview, profile_text):
             print(f"[analyzer] ⚠️ [污染预警] {msg}")
     return warns
 
+
 def _to_text(v):
     """把 LLM 返回的任意类型安全转成文本（兼容 list/dict/数字/None）。"""
     if v is None:
@@ -446,6 +462,89 @@ def _to_text(v):
     if isinstance(v, dict):
         return "\n".join(f"{k}：{_to_text(val)}" for k, val in v.items()).strip()
     return str(v).strip()
+
+
+# ============ 画像演化观测（2026-09-21 新增，纯观测·不告警）============
+# 定位：investor_history.json 此前「只写不读」——快照自建立起从未被任何代码消费。
+# 本函数首次把它读起来，纯 Python 计算、不调 LLM、不消耗额度。
+# 与 _detect_profile_leak 的分工：
+#   - _detect_profile_leak 查「单日产出是否复述画像」→ 这是【污染】，需告警；
+#   - detect_profile_drift 查「画像自身跨天如何演化」→ 这是【漂移】，只记录。
+# 之所以不告警：画像本就是「重写式修订」模式，长度变化不等于故障（详见常量区注释）。
+def _norm_sim(a, b):
+    """归一化相似度 = 最长公共子串 / 较短串长度。返回 0~1，1 表示短串被完全包含。"""
+    if not a or not b:
+        return 0.0
+    return _lcs_len(a, b) / min(len(a), len(b))
+
+
+def detect_profile_drift(days=None):
+    """读 investor_history.json，输出画像逐日演化指标（纯计算，无 LLM 调用）。
+
+    返回 dict；数据不足或读取失败时返回空 dims 并附 reason，不抛异常：
+      {
+        "window": ["09-15", ...],    # 实际参与计算的日期窗口（MM-DD）
+        "dims": {
+          "心理特质": {
+            "avg_sim": 0.699,        # 相邻日平均相似度（1=完全没动）
+            "changed_days": 2,       # 显著调整的天数（相似度 < _DRIFT_CHG_SIM）
+            "samples": 7,            # 参与计算的相邻日对数
+            "len_min": 40, "len_max": 144, "len_ratio": 3.6,
+          }, ...
+        },
+        "summary": "近 7 天：心理特质 2 次显著调整（40~144 字）…"   # 中性描述
+      }
+
+    ⚠️ 本函数**不输出 alert/是否异常**——只把演化过程变成可对照的数字。
+       判据是否成立的讨论见上方常量区「设计定调」注释。
+    """
+    try:
+        with open(_PROFILE_HISTORY_FILE, encoding="utf-8") as f:
+            hist = json.load(f)
+        if not isinstance(hist, dict) or len(hist) < 2:
+            return {"window": [], "dims": {}, "summary": "", "reason": "history 不足（<2 天）"}
+    except Exception as e:
+        return {"window": [], "dims": {}, "summary": "", "reason": f"history 读取失败: {e}"}
+
+    win = sorted(hist.keys())[-(days or _PROFILE_DRIFT_DAYS):]
+    if len(win) < 2:
+        return {"window": [k[5:] for k in win], "dims": {}, "summary": "",
+                "reason": "窗口内天数不足"}
+
+    # 窗口内出现过的全部维度（容忍历史维度名变更造成的稀疏）
+    all_dims = sorted({d for k in win for d in (hist[k].get("profile") or {})})
+
+    out_dims, parts = {}, []
+    for d in all_dims:
+        vals = [(k, (hist[k].get("profile") or {}).get(d, "")) for k in win]
+        vals = [(k, v) for k, v in vals if v]
+        if len(vals) < 2:
+            continue
+        sims = [_norm_sim(vals[i][1], vals[i + 1][1]) for i in range(len(vals) - 1)]
+        lens = [len(v) for _, v in vals]
+        n_chg = sum(1 for s in sims if s < _DRIFT_CHG_SIM)
+        out_dims[d] = {
+            "avg_sim": round(sum(sims) / len(sims), 3),
+            "changed_days": n_chg,
+            "samples": len(sims),
+            "len_min": min(lens),
+            "len_max": max(lens),
+            "len_ratio": round((max(lens) / min(lens)) if min(lens) else 0.0, 1),
+        }
+        # 中性描述：陈述事实，不加「疑似/异常」等判断词
+        _desc = f"{d} {n_chg} 次显著调整（{min(lens)}~{max(lens)} 字）" if n_chg             else f"{d} 无显著调整（{min(lens)} 字）"
+        parts.append(_desc)
+
+    summary = f"近 {len(win)} 天：" + "；".join(parts) if parts else ""
+    if summary:
+        print(f"[画像演化] {win[0][5:]}~{win[-1][5:]}  {summary}")
+
+    return {
+        "window": [k[5:] for k in win],
+        "dims": out_dims,
+        "summary": summary,
+    }
+
 
 
 # ============ 投资风格画像全自动增量更新 ============
@@ -496,9 +595,18 @@ def update_investor_profile(overview, posts, today):
         ev = u.get("evidence", "")
         prof_dim[dim] = _to_text(u["new_text"])
         changed.append(f"🔄 {dim}（依据：{ev[:30]}）")
-    # evolution 追加
+    # evolution 追加（2026-09-21 改：同日幂等）
+    # 原实现无条件追加，导致同日多次触发（手动重跑 + 定时叠加）时同一日期重复累积
+    # ——实测 07-19 出现 7 次、07-20 出现 9 次、09-07 出现 5 次，evolution 膨胀至 132 行。
+    # 现改为：若末行已是今日记录，则【原地替换】而非追加；其余情况仍追加。
+    # 语义：evolution 记录的是「该日期最终的更新情况」，同日重复跑只保留最后一次。
     new_evo = f"{today}：更新 {len(valid)} 个维度（{', '.join(u['dimension'] for u in valid)}）"
-    prof["evolution"] = f"{evo_list}\n{new_evo}" if evo_list else new_evo
+    _evo_lines = [ln for ln in (evo_list or "").split("\n") if ln.strip()]
+    if _evo_lines and _evo_lines[-1].startswith(f"{today}："):
+        _evo_lines[-1] = new_evo          # 同日重跑 → 替换末行，不重复累积
+        prof["evolution"] = "\n".join(_evo_lines)
+    else:
+        prof["evolution"] = "\n".join(_evo_lines + [new_evo]) if _evo_lines else new_evo
     prof["last_updated"] = today
     try:
         with open(_PROFILE_FILE, "w", encoding="utf-8") as f:

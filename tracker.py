@@ -17,7 +17,8 @@ from config import (DATA_DIR, REPORT_DIR, STATE_FILE, RECENT_N,
 from scraper import scrape_user
 from analyzer import (daily_summary, analyze_positions_and_nicknames,
                       build_daily_overview, load_investor_profile,
-                      update_investor_profile, get_last_backend)
+                      update_investor_profile, get_last_backend,
+                      detect_profile_drift)   # 档位A：画像漂移监测
 from nickname_rules import load_nickname_rules, rules_to_text
 from query_stock import query_stock
 
@@ -787,6 +788,13 @@ def main():
     for c in prof_changes:
         print(f"[画像更新] {c}")
 
+    # 5.1 画像演化观测（2026-09-21 新增）：读 investor_history.json 输出逐日演化
+    # 指标。纯 Python 计算，不调 LLM、不消耗额度、不阻断主流程。
+    # 必须在 update_investor_profile() 之后调用——它刚把今日快照写入 history，
+    # 置于此处可让本次运行的结果也纳入窗口，反映的是最新状态。
+    # 只记录、不告警（画像本就是重写式修订，长度变化不等于故障）。
+    profile_drift = detect_profile_drift()
+
     # 6. 累计存档数更新（基于发言 id 跨运行去重，只累加本次新见到的，避免同日重复计）
     seen_ids = set(st.get("_seen_ids", []))
     fresh = [p for p in display if p.get("id") and p["id"] not in seen_ids]
@@ -826,6 +834,7 @@ def main():
         "pending_rules": analysis["new_rules"],            # 待确认（昵称规律建议）
         "applied_position_changes": [] if pos_blocked else pos_changes,  # 本次自动持仓变更（审计）
         "applied_profile_update": prof_changes,      # 本次自动画像变更（审计）
+        "profile_drift": profile_drift,              # 画像演化指标（纯观测，不告警）
         "mentions": analysis["mentions"],
         "aggregated": aggregate_posts(display, st["nickname_map"], st["positions"]) if len(display) > AGGREGATE_THRESHOLD else None,
         "posts": display,
