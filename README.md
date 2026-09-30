@@ -84,7 +84,7 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 | ③ | 📊 本次结果 | 运行时统计 | 今日发言数 + 累计存档数 |
 | ④ | 📝 发言聚合 | 当日发言按标签聚类（>50 条做聚合，否则逐条） | 子板块 + 占比 |
 | ⑤ | 🧠 投资风格分析 | `investor_profile.json`（4 维度 + 综合评估） | 表格 + 段落 |
-| ⑥ | 🏷️ 昵称映射表 | `nickname_rules.json`（规则）+ `state.json`（映射） | 规则三列表格 + 映射表 |
+| ⑥ | 🏷️ 昵称映射表 | `nickname_rules.json`（规则）+ `state.json`（映射） | 规则三列表格 + 映射表（**默认折叠**，点「展开（N）」显示全部） |
 
 
 
@@ -341,6 +341,8 @@ python tracker.py
 - **cookie 安全**：`DOUBAN_COOKIE` 为登录凭证，仅注入私仓 Secrets，勿提交；建议定期「设置 → 退出其他设备」轮换。
 
 - **看板实时性**：`docs/index.html` 拉取 `data/latest.json` 时带 `cache: 'no-store'`，且 `<head>` 设 `no-cache` meta，浏览器不缓存数据，**每次打开即最新、无需手动清缓存**。
+
+- **看板折叠区（2026-09-30）**：⑥「已收录映射」条数多（现 60+ 条），看板默认**收起**，标题右侧按钮显示条数「展开（N）」，点击就地铺开全部「昵称 → 对应名称」，再点变「收起」。实现为纯前端（`docs/index.html` 内 CSS + 一个 document 级点击委托），不改数据、不影响 `reports/*.md` 归档文本。新增长表时沿用同一套：`<div class="fold-hd">标题 + <button class="fold-btn" data-fold="<key>" data-n="N">` + `<div id="fold-<key>" style="display:none">`。
 
 
 

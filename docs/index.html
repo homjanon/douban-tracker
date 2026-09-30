@@ -38,6 +38,14 @@
                     padding: 8px 14px; font-size: 14px; cursor: pointer; }
   .toolbar button:hover { background: #06ad56; }
   .toolbar .hint { color: #999; font-size: 12px; }
+  /* 折叠区（2026-09-30）：长表格默认收起，点「展开（N）」看全部；交互同 cmb-tracker 大V画像 */
+  .fold-hd { display: flex; align-items: center; gap: 10px; margin: 16px 0 6px; }
+  .fold-hd h3 { margin: 0; }
+  .fold-btn { margin-left: auto; border: none; background: #eef2f7; color: #3a4a5e;
+              font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 10px;
+              cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .fold-btn:hover { background: #dde5ee; }
+  @media (max-width: 740px) { .fold-btn { padding: 6px 13px; font-size: 13px; } }
 </style>
 </head>
 <body>
@@ -141,9 +149,14 @@ function render(d) {
       h += '<pre>' + esc(d.nickname_rules) + '</pre>';
     }
   }
+  // 已收录映射（2026-09-30 起默认折叠）：条数多时折叠，点「展开（N）」显示全部
   if (d.nickname_map) {
-    h += '<h3>📋 已收录映射</h3>' + table([['昵称','对应名称'],
-      ...Object.entries(d.nickname_map)]);
+    const nm = Object.entries(d.nickname_map);
+    h += '<div class="fold-hd"><h3>📋 已收录映射</h3>'
+       + '<button type="button" class="fold-btn" data-fold="nickmap" data-n="' + nm.length + '">'
+       + '展开（' + nm.length + '）</button></div>'
+       + '<div id="fold-nickmap" style="display:none">'
+       + table([['昵称','对应名称'], ...nm]) + '</div>';
   }
   h += '</div>';
 
@@ -346,6 +359,18 @@ function mdText(s) {
     return esc(part).replace(/\n/g, '<br>');
   }).join('');
 }
+
+// 折叠区交互（2026-09-30）：事件委托挂在 document —— 渲染是 innerHTML 一次性赋值，
+// 委托方式不依赖渲染时机；默认收起，点「展开（N）」铺开，再点变「收起」。
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('.fold-btn');
+  if (!btn) return;
+  const box = document.getElementById('fold-' + btn.dataset.fold);
+  if (!box) return;
+  const open = box.style.display !== 'none';
+  box.style.display = open ? 'none' : '';
+  btn.textContent = open ? ('展开（' + (btn.dataset.n || '') + '）') : '收起';
+});
 
 function esc(s) {
   return (s == null ? '' : String(s)).replace(/[&<>"]/g,
