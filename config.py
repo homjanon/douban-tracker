@@ -1,10 +1,9 @@
 """配置：从环境变量读取，缺失时用默认值。
 
-LLM 后端优先级（智谱 GLM-4.7 主力 + DeepSeek-V4-Flash 二级 + Agnes 2.5 三级 + Gemini 3 Flash 兜底）：
-  1) 智谱 AI GLM-4.7（glm-4.7，ZHIPU_API_KEY）—— 主力（OpenAI 兼容）
-  2) 商汤 DeepSeek-V4-Flash（deepseek-v4-flash，复用 SENSENOVA_API_KEY）—— 二级
-  3) Agnes AI agnes-2.5-flash —— 免费多模态，三级
-  4) Google Gemini 3 Flash（gemini-3-flash-preview，GEMINI_API_KEY）—— 免费，兜底
+LLM 后端优先级（DeepSeek-V4-Flash 一级 + Agnes 2.5 二级 + Gemini 3 Flash 兜底）：
+  1) 商汤 DeepSeek-V4-Flash（deepseek-v4-flash，复用 SENSENOVA_API_KEY）—— 一级
+  2) Agnes AI agnes-2.5-flash —— 免费多模态，二级
+  3) Google Gemini 3 Flash（gemini-3-flash-preview，GEMINI_API_KEY）—— 免费，兜底
 
 抓取：豆瓣话题页 + DOUBAN_COOKIE 登录态（HTTP 直连，无 WAF/Playwright）。
 状态：state.json 增量游标 + 昵称映射 + 持仓（每轮 commit 回仓库持久化）。
@@ -26,24 +25,10 @@ SCRAPE_MODE = os.getenv("SCRAPE_MODE", "topic").strip().lower()
 
 HEADLESS = os.getenv("HEADLESS", "false").lower() != "false"
 
-# ============ LLM 后端（智谱 GLM-4.7 主力 + DeepSeek-V4-Flash 二级 + Agnes 2.5 三级 + Gemini 3 Flash 兜底）============
+# ============ LLM 后端（DeepSeek-V4-Flash 一级 + Agnes 2.5 二级 + Gemini 3 Flash 兜底）============
 BACKENDS = [
     {
-        # ① 主力：智谱 AI GLM-4.7（OpenAI 兼容，ZHIPU_API_KEY）
-        #  2026-09-17 由 glm-4.5-air 升级：官方文档明确「GLM-4.5、GLM-4.5-X 模型即将下线，
-        #    建议选择最新旗舰文本模型 GLM-4.7」。接入参数完全兼容（Base URL / endpoint /
-        #    messages / thinking.type 写法均不变），仅模型名变更。上下文 200K、最大输出 128K。
-        #  thinking 关闭（参考 qiugecaozuo 实测：关思考 content 472→5306 字）+ max_tokens 给足防截断
-        "name": "zhipu-glm-4.7",
-        "base_url": os.getenv("ZHIPU_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"),
-        "api_key": os.getenv("ZHIPU_API_KEY", ""),
-        "model": os.getenv("ZHIPU_MODEL", "glm-4.7"),
-        "timeout": int(os.getenv("ZHIPU_TIMEOUT", "120")),
-        "max_tokens": 12000,
-        "extra": {"thinking": {"type": "disabled"}},
-    },
-    {
-        # ② 二级：商汤 DeepSeek-V4-Flash（复用 SENSENOVA_API_KEY，同商汤平台），参考 qiugecaozuo 仓 call_llm.py
+        # ① 一级：商汤 DeepSeek-V4-Flash（复用 SENSENOVA_API_KEY，同商汤平台），参考 qiugecaozuo 仓 call_llm.py
         #  reasoning_effort=low 轻思考（实测 12s→2.6s 且 content 稳定非空）+ max_tokens 给足
         "name": "deepseek-v4-flash",
         "base_url": os.getenv("SENSENOVA_BASE_URL", "https://token.sensenova.cn/v1"),
@@ -54,7 +39,7 @@ BACKENDS = [
         "extra": {"reasoning_effort": "low"},
     },
     {
-        # ③ 三级：Agnes AI 免费多模态
+        # ② 二级：Agnes AI 免费多模态
         #  2026-09-17：agnes-2.0-flash 已被官方标记「已废弃」，升级为 agnes-2.5-flash（仅改模型名）
         "name": "agnes-2.5-flash",
         "base_url": os.getenv("AGNES_BASE_URL", "https://apihub.agnes-ai.com/v1"),
@@ -64,7 +49,7 @@ BACKENDS = [
         "max_tokens": 12000,
     },
     {
-        # ④ 兜底：Google Gemini 3 Flash（免费，1500 RPD 独立配额桶）
+        # ③ 兜底：Google Gemini 3 Flash（免费，1500 RPD 独立配额桶）
         #  2026-09-17 顶替被移除的 NVIDIA GLM-5.2：后者近一个月不稳定（08-26/09-13/09-16
         #    三次全部后端失败的日期高度相关），且 429 限流频发。
         #  ⚠️ 模型名必须带 -preview 后缀：实测无后缀 gemini-3-flash 会 404（2026-09-16 news-feed 验证）。

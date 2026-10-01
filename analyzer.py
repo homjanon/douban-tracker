@@ -1,7 +1,7 @@
-"""研判层：LLM 四级后端 + 鲁棒提取 + 中性归纳 + 持仓/昵称判断。
+"""研判层：LLM 三级后端 + 鲁棒提取 + 中性归纳 + 持仓/昵称判断。
 
-后端优先级（智谱 GLM-4.7 主力 + 商汤 DeepSeek-V4-Flash 二级 + Agnes 2.5 三级 + Gemini 3 Flash 兜底）：
-  glm-4.7 → deepseek-v4-flash → agnes-2.5-flash → gemini-3-flash-preview
+后端优先级（商汤 DeepSeek-V4-Flash 一级 + Agnes 2.5 二级 + Gemini 3 Flash 兜底）：
+  deepseek-v4-flash → agnes-2.5-flash → gemini-3-flash-preview
 首个有 key 且调用成功即生效；全部失败回退发言摘录。
 
 与 xueqiu-tracker 的差异：
@@ -85,7 +85,7 @@ def _post(backend, messages):
         return None
     try:
         payload = {"model": backend["model"], "messages": messages, "temperature": 0.3}
-        # 后端级 max_tokens / extra（如智谱关思考、商汤 reasoning_effort=low，参考 qiugecaozuo 用法）
+        # 后端级 max_tokens / extra（如商汤 reasoning_effort=low，参考 qiugecaozuo 用法）
         if backend.get("max_tokens"):
             payload["max_tokens"] = backend["max_tokens"]
         payload.update(backend.get("extra", {}))
