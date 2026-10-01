@@ -208,11 +208,22 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 > - **④ 层**：NVIDIA `z-ai/glm-5.2` → **Google `gemini-3-flash-preview`**。动因：NVIDIA 位近一个月不稳定且 429 限流频发（详见下条），改用已在 news-feed 验证稳定的 Gemini 3 Flash。
 > - **顺带清理**：随 NVIDIA 位移除，其专用的 `PRIMARY_BASE_URL` / `PRIMARY_MODEL` / `PRIMARY_TIMEOUT` 环境变量一并删除，不留孤儿变量（避免「配了不生效」的困惑）。
 >
-> **模型链变更记录（2026-10-01）**：
-> - **移除①层智谱 GLM-4.7**，原②③④层依次上移为①一级 / ②二级 / ③兜底。动因：不再使用智谱模型。
-> - **同步清理**：`config.py` 中智谱后端块、`.env.example` 的 `ZHIPU_*` 段一并删除；`analyzer.py` docstring 与 `README` 环境变量表中的 `ZHIPU_API_KEY` 行同步移除。
-> - **保留**：`tracker.py` 中记录 glm 造成历史故障的注释（`_normalize_md_table` / `_normalize_md_list` 的背景说明）**有意保留**——那是故障溯源信息，不是配置。
-> - ⚠️ **GitHub Secrets 的 `ZHIPU_API_KEY` 需手动删除**（代码不再读取，但残留 secret 建议清理以免误用）。
+
+> **模型链变更记录（2026-10-01）—— 后端链由四级精简为三级**：
+>
+> **变更后拓扑**：`deepseek-v4-flash`（① 一级）→ `agnes-2.5-flash`（② 二级）→ `gemini-3-flash-preview`（③ 兜底）
+>
+> - **移除①层智谱 GLM-4.7**（`zhipu-glm-4.7` / `ZHIPU_API_KEY`），原②③④层**整块上移**为①一级 / ②二级 / ③兜底。动因：不再使用智谱模型。
+>   上移各层的 `base_url` / `model` / `timeout` / `max_tokens` / `extra`（商汤的 `reasoning_effort=low`）**参数原样保留**，未改动任何一项。
+> - **同步清理**（不留孤儿配置）：
+>   · `config.py` —— 删除智谱后端块；头部 docstring 与段标题注释更新为三级；
+>   · `.env.example` —— 删除 `ZHIPU_API_KEY` / `ZHIPU_BASE_URL` / `ZHIPU_MODEL` 三行；标题「四级」→「三级」；
+>   · `analyzer.py` —— 头部 docstring 后端链更新，「四级后端」→「三级后端」；`max_tokens`/`extra` 注释去掉「智谱关思考」举例；
+>   · `README.md` —— 本章节标题与列表 4 条 → 3 条；环境变量表移除 `ZHIPU_API_KEY` 行并按新层级重排；`export` 示例行与 `llm_backend` 举例同步。
+> - **有意保留（非配置，属故障溯源）**：`tracker.py` 中 `_normalize_md_table` / `_normalize_md_list` 的 glm-4.7 背景注释、`config.py` Gemini 块的「顶替 NVIDIA GLM-5.2」注记、本文件 2026-09-17 的变更记录与表格渲染故障段落。
+>   保留理由：这些文字解释「为何存在这段防御代码」，删除会丢失根因上下文。**活跃配置中的 GLM 引用已清零**（`BACKENDS` 区块 0 处）。
+> - ⚠️ **待人工处理**：GitHub Secrets 中的 `ZHIPU_API_KEY` 建议删除（代码已不读取；同批残留还有 `NVIDIA_API_KEY`、`IMA_API_KEY`、`IMA_CLIENT_ID`）。
+> - **验证**：`py_compile` 通过；`BACKENDS` 3 项、顺序正确；降级链路 11 项冒烟测试全过（各级成功 / 逐级降级 / 全挂返回 None + `llm_backend` 留痕）；端点探测 DeepSeek 与 Agnes 均返回 401（端点正确，仅缺授权）。
 
 > **故障追溯能力新增（2026-09-17）**：产物 `latest.json` 新增 **`llm_backend`** 字段，记录本轮**实际生效的后端名**（如 `deepseek-v4-flash`）；若三个后端全失败、已回退摘录，该字段为 `null`。
 > 增设原因：`BACKENDS[].name` 原先**只用于日志打印、不落库**，导致 `2026-08-26` / `09-13` / `09-16` 三次「今日总览 5 区块全空」故障时**无法从产物反查是哪家模型挂的**，只能靠「全部后端全挂才可能全空」反推。现可直接查该字段定位。
@@ -248,7 +259,7 @@ douban-tracker/
 
 ├── .github/workflows/track.yml   # 由 Cloudflare qdii-dispatch 触发（工作日 11:00/16:00 · 周末 16:00 · 无 schedule）
 
-├── config.py                     # 四级 LLM 后端 + 双模式抓取配置（SCRAPE_MODE / 两套 URL）
+├── config.py                     # 三级 LLM 后端 + 双模式抓取配置（SCRAPE_MODE / 两套 URL）
 
 ├── scraper.py                    # 豆瓣 HTTP+cookie 抓取（无 Playwright/WAF）
 
