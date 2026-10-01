@@ -36,10 +36,9 @@ jobs:
           DOUBAN_USER_STATUSES_URL: ${{ secrets.DOUBAN_USER_STATUSES_URL }}
           DOUBAN_TARGET_USER: ${{ secrets.DOUBAN_TARGET_USER }}
           SCRAPE_MODE: ${{ secrets.SCRAPE_MODE }}
+          SENSENOVA_API_KEY: ${{ secrets.SENSENOVA_API_KEY }}
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          SENSENOVA_API_KEY: ${{ secrets.SENSENOVA_API_KEY }}
-          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
         run: python tracker.py
 
       - name: 校验 latest.json 结构完整性
