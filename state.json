@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-07 16:02:41",
+  "updated_at": "2026-10-07 21:42:04",
   "last_cursor": "2026-10-0711:55:05",
   "nickname_map": {
     "C50": "创业板50ETF",
@@ -69,66 +69,6 @@
   "positions": {
     "positions": [
       {
-        "name": "华安文体健康混合",
-        "code": "001532",
-        "action": "持有",
-        "first_seen": "07-02",
-        "category": "科技基金",
-        "cost_price": "暂无",
-        "last_note": "观察估值表现",
-        "current_price": "5.2580（-0.44%）"
-      },
-      {
-        "name": "中欧新趋势混合(LOF)A",
-        "code": "166001",
-        "action": "持有",
-        "first_seen": "07-03",
-        "category": "混合基金",
-        "cost_price": "暂无",
-        "last_note": "持有",
-        "current_price": "1.5801（0.33%）"
-      },
-      {
-        "name": "信澳匠心回报混合A",
-        "code": "015608",
-        "action": "持有",
-        "first_seen": "07-03",
-        "category": "化工基金",
-        "cost_price": "暂无",
-        "last_note": "持有",
-        "current_price": "2.1910（-1.44%）"
-      },
-      {
-        "name": "广发全球精选股票(QDII)A",
-        "code": "270023",
-        "action": "持有",
-        "first_seen": "07-02",
-        "category": "美股基金",
-        "cost_price": "暂无",
-        "last_note": "持有",
-        "current_price": "6.4046（0.68%）"
-      },
-      {
-        "name": "华宝致远混合(QDII)C",
-        "code": "008253",
-        "action": "持有",
-        "first_seen": "07-02",
-        "category": "美股基金",
-        "cost_price": "暂无",
-        "last_note": "9.14日预估-5%实际仅-3%，确认其已去掉三倍…",
-        "current_price": "1.7905（1.22%）"
-      },
-      {
-        "name": "建信新兴市场混合(QDII)A",
-        "code": "539002",
-        "action": "持有",
-        "first_seen": "07-02",
-        "category": "含海力士基金",
-        "cost_price": "暂无",
-        "last_note": "维持现状，但对港股持谨慎态度，认为外资流出压力未解",
-        "current_price": "2.5030（1.05%）"
-      },
-      {
         "name": "招商银行",
         "code": "600036",
         "action": "持有",
@@ -196,7 +136,7 @@
         "name": "粤传媒",
         "code": "002181",
         "action": "持有",
-        "category": "",
+        "category": "传媒",
         "cost_price": "暂无",
         "market_value": "暂无",
         "note": "兑现部分仓位用于参与次新股",
@@ -205,22 +145,10 @@
         "current_price": "8.80（-2.22%）"
       },
       {
-        "name": "我爱我家",
-        "code": "000560",
-        "action": "持有",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "追涨买入，后因需买中影忍痛割爱卖出，见万科涨停后又买回",
-        "last_note": "打不开跌停，表现不及预期",
-        "first_seen": "09-21",
-        "current_price": "3.70（-1.60%）"
-      },
-      {
         "name": "引力传媒",
         "code": "603598",
         "action": "持有",
-        "category": "",
+        "category": "传媒",
         "cost_price": "暂无",
         "market_value": "暂无",
         "note": "设置1984条件单，计划触发后暂不转换，过完中秋节再操作",
@@ -241,39 +169,15 @@
         "current_price": "6.58（-0.75%）"
       },
       {
-        "name": "掌阅科技(zy)",
-        "code": "",
+        "name": "掌阅科技",
+        "code": "603533",
         "action": "买入",
-        "category": "",
+        "category": "传媒",
         "cost_price": "暂无",
         "market_value": "暂无",
         "note": "部分仓位转移卖出",
         "last_note": "24依然遇阻，重要卡点过不去，直接放弃挑战",
         "first_seen": "09-29",
-        "current_price": "暂无"
-      },
-      {
-        "name": "泸州老窖(露露)",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "随消费板块火箭发射，认可贷款喝酒逻辑",
-        "last_note": "",
-        "first_seen": "09-30",
-        "current_price": "暂无"
-      },
-      {
-        "name": "郭外ETF（日经/QDII）",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "提及国庆前是场内ETF（如nk、日经ETF）传统买点，但最近因场外基金较多未再操作",
-        "last_note": "提及国庆前是场内ETF（如nk、日经ETF）传统买…",
-        "first_seen": "10-06",
         "current_price": "暂无"
       }
     ]
