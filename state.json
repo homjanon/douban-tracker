@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-11 16:02:39",
+  "updated_at": "2026-10-11 16:53:29",
   "last_cursor": "2026-10-1113:58:16",
   "nickname_map": {
     "C50": "创业板50ETF",
@@ -170,10 +170,10 @@
         "current_price": "25.44（9.99%）"
       },
       {
-        "name": "通信ETF（515880）",
-        "code": "",
+        "name": "通信ETF",
+        "code": "515880",
         "action": "买入",
-        "category": "",
+        "category": "通信",
         "cost_price": "暂无",
         "market_value": "暂无",
         "note": "遇事不决买通信，冰点条件单买入2000份，0.595成本",
@@ -182,26 +182,14 @@
         "current_price": "暂无"
       },
       {
-        "name": "SY（上海电影）",
-        "code": "",
+        "name": "上海电影",
+        "code": "601595",
         "action": "买入",
-        "category": "",
+        "category": "传媒",
         "cost_price": "暂无",
         "market_value": "暂无",
         "note": "挂涨停价24.74卖出",
         "last_note": "挂涨停价24.74卖出",
-        "first_seen": "10-09",
-        "current_price": "暂无"
-      },
-      {
-        "name": "黄金/黄金股ETF",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "卖出博纳后顺势买入，现货黄金站上4200美元",
-        "last_note": "卖出博纳后顺势买入，现货黄金站上4200美元",
         "first_seen": "10-09",
         "current_price": "暂无"
       }
