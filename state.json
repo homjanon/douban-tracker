@@ -193,6 +193,14 @@
         "last_note": "挂涨停价24.74卖出",
         "first_seen": "10-09",
         "current_price": "27.21（9.98%）"
+      },
+      {
+        "name": "我爱我家",
+        "code": "000560",
+        "action": "持有",
+        "category": "",
+        "cost_price": "3.34",
+        "note": ""
       }
     ]
   },
