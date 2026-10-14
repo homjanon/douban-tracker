@@ -206,27 +206,15 @@
         "last_note": ""
       },
       {
-        "name": "中国电影（阿中/中影）",
-        "code": "",
-        "action": "买入",
+        "name": "中国电影",
+        "code": "600977",
+        "action": "持有",
         "category": "",
         "cost_price": "暂无",
         "market_value": "暂无",
         "note": "昨日逆市买入手，「中影你来来看呀」，不急卖出、稳健埋伏",
         "last_note": "昨日逆市买入手，「中影你来来看呀」，不急卖出、稳健…",
         "first_seen": "10-13",
-        "current_price": "暂无"
-      },
-      {
-        "name": "中国电影(阿中)",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "「中影开始凸显价值了」，消息面《复仇者联盟5》定档催化",
-        "last_note": "「中影开始凸显价值了」，消息面《复仇者联盟5》定档…",
-        "first_seen": "10-14",
         "current_price": "暂无"
       }
     ]
