@@ -1,19 +1,19 @@
 {
-  "fetched_at": "2026-10-15 16:01:38",
-  "llm_backend": null,
+  "fetched_at": "2026-10-16 07:39:59",
+  "llm_backend": "deepseek-v4-flash",
   "user": {
     "name": "不知道还能说啥",
-    "count": 0
+    "count": 2
   },
-  "today_count": 0,
-  "total_archived": 15667,
+  "today_count": 2,
+  "total_archived": 15669,
   "showing_fallback": false,
-  "daily_summary": "不知道还能说啥：暂未发言",
+  "daily_summary": "不知道还能说啥：他关注软件板块，认为软件仍主导市场，且与硬件反弹走势不同步，模拟盘收益12%",
   "overview": {
-    "market_background": "",
+    "market_background": "市场背景：**仅依据今日发言**提炼。今日发言核心围绕软件板块主导地位及其与硬件的分化展开：『软件依然主导』『当硬件反弹 软件不会反向下』，反映当前市场软件方向独立走强、不受硬件波动拖累的结构特征。此外『就这破玩意搞的啊？模拟盘都12%了😅😅😅』体现对某标的/组合的调侃情绪，但未构成整体市场背景。故今日发言未涉及更宏观的整体市场判断。",
     "today_actions": "",
-    "discussion_topics": "",
-    "favored_sectors": "",
+    "discussion_topics": "| 议题 | 态度 | 核心观点 | 关键引用 |\n| --- | --- | --- | --- |\n| 软件与硬件走势关系 | 📈看多 | 软件仍主导，且与硬件脱钩，硬件反弹不再带弱软件 | 「软件依然主导」「当硬件反弹 软件不会反向下」 |",
+    "favored_sectors": "- **软件板块**：今日发言明确表示“软件依然主导”，并强调与硬件分化，独立性强。",
     "risk_warnings": ""
   },
   "overview_warnings": [],
@@ -316,5 +316,24 @@
   },
   "mentions": {},
   "aggregated": null,
-  "posts": []
+  "posts": [
+    {
+      "id": "6775995782",
+      "author": "不知道还能说啥",
+      "content": "就这破玩意搞的啊？模拟盘都12%了😅😅😅\n\n![图片](data/images/2026-10-16/ec428e41f4d99fb2557c7eeb6aee242b.jpg)",
+      "time": "2026-10-16 07:13:18",
+      "sortable_time": "07:13:18",
+      "quote": "（引用 @sickid）牛逼，真V了",
+      "date": "2026-10-16"
+    },
+    {
+      "id": "6775997352",
+      "author": "不知道还能说啥",
+      "content": "软件依然主导 \n和以前最大的不同就是当硬件反弹 软件不会反向下\n\n![图片](data/images/2026-10-16/d8cb0426000a66a3557ff4c4dd5dcc6d.jpg)",
+      "time": "2026-10-16 07:21:52",
+      "sortable_time": "07:21:52",
+      "quote": "（引用 @🈵载而归😎）拉回两个点😒",
+      "date": "2026-10-16"
+    }
+  ]
 }
