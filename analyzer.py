@@ -1,7 +1,7 @@
 """研判层：LLM 三级后端 + 鲁棒提取 + 中性归纳 + 持仓/昵称判断。
 
-后端优先级（商汤 DeepSeek V4.1 Flash 一级 + Agnes 2.5 二级 + Gemini 3 Flash 兜底）：
-  deepseek-flash → agnes-2.5-flash → gemini-3-flash-preview
+后端优先级（商汤 DeepSeek V4.1 Flash 抢一级 + V4 Flash 回落 + Agnes 2.5 + Gemini 3 Flash 兜底）：
+  deepseek-flash → deepseek-v4-flash → agnes-2.5-flash → gemini-3-flash-preview
 首个有 key 且调用成功即生效；全部失败回退发言摘录。
 
 与 xueqiu-tracker 的差异：
@@ -79,30 +79,43 @@ INVALID_HINTS = (
 
 
 # ============ 通用 LLM 调用 ============
+# 429/5xx 退避间隔（秒）。重试次数由 BACKENDS[].retry 指定（默认 0=不重试），
+# 只给"全局限流池极小的新模型"配（见 config 里 deepseek-flash 的实测注记）。
+_RETRY_DELAYS = [1.5, 4.0]
+
+
 def _post(backend, messages):
     key = backend.get("api_key")
     if not key:
         return None
-    try:
-        payload = {"model": backend["model"], "messages": messages, "temperature": 0.3}
-        # 后端级 max_tokens / extra（如商汤 reasoning_effort=low，参考 qiugecaozuo 用法）
-        if backend.get("max_tokens"):
-            payload["max_tokens"] = backend["max_tokens"]
-        payload.update(backend.get("extra", {}))
-        r = requests.post(
-            f"{backend['base_url']}/chat/completions",
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json=payload,
-            timeout=backend.get("timeout", TIMEOUT),
-        )
-        r.raise_for_status()
-        # 兼容两种响应：标准 content / 商汤系 reasoning_content（2026-08-20）
-        msg = r.json()["choices"][0].get("message", {})
-        c = msg.get("content") or msg.get("reasoning_content") or ""
-        return c or None
-    except Exception as e:
-        print(f"[analyzer] {backend['name']} 调用失败: {e}")
-        return None
+    payload = {"model": backend["model"], "messages": messages, "temperature": 0.3}
+    # 后端级 max_tokens / extra（如商汤 reasoning_effort=low，参考 qiugecaozuo 用法）
+    if backend.get("max_tokens"):
+        payload["max_tokens"] = backend["max_tokens"]
+    payload.update(backend.get("extra", {}))
+    retries = int(backend.get("retry", 0))
+    for attempt in range(retries + 1):
+        try:
+            r = requests.post(
+                f"{backend['base_url']}/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json=payload,
+                timeout=backend.get("timeout", TIMEOUT),
+            )
+            if r.status_code in (429, 502, 503) and attempt < retries:
+                delay = _RETRY_DELAYS[min(attempt, len(_RETRY_DELAYS) - 1)]
+                print(f"[analyzer] {backend['name']} 限流/抖动({r.status_code})，{delay}s 后重试 {attempt + 1}/{retries}")
+                time.sleep(delay)
+                continue
+            r.raise_for_status()
+            # 兼容两种响应：标准 content / 商汤系 reasoning_content（2026-08-20）
+            msg = r.json()["choices"][0].get("message", {})
+            c = msg.get("content") or msg.get("reasoning_content") or ""
+            return c or None
+        except Exception as e:
+            print(f"[analyzer] {backend['name']} 调用失败: {e}")
+            return None
+    return None
 
 
 def call_multi(messages, budget=90):

@@ -186,15 +186,17 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 
 
 
-### LLM 三级后端（DeepSeek V4.1 Flash 一级 + Agnes 2.5 二级 + Gemini 3 Flash 兜底）
+### LLM 四级后端（V4.1 Flash 抢一级 + V4 Flash 回落 + Agnes 2.5 + Gemini 3 Flash 兜底）
 
 按顺序尝试，首个有 key 且成功即生效；**每日 3 次 LLM 调用**（摘要 / 持仓昵称研判 / 今日总览+画像修订合并，2026-08-20 优化，原先 4 次）：
 
-1. **商汤 DeepSeek V4.1 Flash** `deepseek-flash`（复用 `SENSENOVA_API_KEY`，商汤平台，一级；`reasoning_effort=low` 轻思考 + `max_tokens=12000`，实测 12s→2.6s 且 content 稳定非空）
+1. **商汤 DeepSeek V4.1 Flash** `deepseek-flash`（复用 `SENSENOVA_API_KEY`，商汤平台，一级；`reasoning_effort=low` 轻思考 + `max_tokens=12000`；该新模型**全局共享速率池极小**，故配 `retry=2` 指数退避，见下方 2026-10-20 变更记录）
 
-2. **Agnes AI** `agnes-2.5-flash`（免费多模态，二级）
+2. **商汤 DeepSeek V4 Flash** `deepseek-v4-flash`（**同 Key、同端点，仅模型 ID 不同**，一级被限流时在此住下，不再外溢到第三方；实测同参数 3/3 全 200）
 
-3. **Google Gemini 3 Flash** `gemini-3-flash-preview`（`GEMINI_API_KEY`，免费，1500 RPD 独立配额桶，兜底）
+3. **Agnes AI** `agnes-2.5-flash`（免费多模态，三级）
+
+4. **Google Gemini 3 Flash** `gemini-3-flash-preview`（`GEMINI_API_KEY`，免费，1500 RPD 独立配额桶，兜底）
 
    > ⚠️ 模型名**必须带 `-preview` 后缀**：实测无后缀 `gemini-3-flash` 会返回 **404**（2026-09-16 news-feed 仓验证）。
 
@@ -241,7 +243,34 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 >   · **未通过验证的部分**：**尚未做带真实 Key 的调用**。以 `Bearer sk-invalid-probe` 匿名 POST `/v1/chat/completions` 时，`deepseek-flash`、`deepseek-v4-flash`、以及故意编造的 `nonexistent-model-xyz` **三者返回完全一致**（HTTP 401 `{"error":{"code":16,"message":"Forbidden"}}`）——商汤侧**鉴权先于模型名校验**，故无 Key 时既探不通、也无法反证该 ID 是否被放行。端点连通性本身已确认。
 >   · 首次 CI 运行后请核对 `data/latest.json` 的 `llm_backend`：为 `deepseek-flash` 即新模型已生效；若显示 `deepseek-v4-flash` 说明 Key 侧仍在跑旧 ID（需查 Secrets 是否覆盖了 `DEEPSEEK_MODEL`）；若降级为 `agnes-2.5-flash`/`gemini-3-flash`，说明新 ID 未被该 Key 放行，此时回退只需把 `config.py` 的 model/name 改回 `deepseek-v4-flash`。
 
+> **模型链变更记录（2026-10-20 同日第二次）—— V4.1 Flash 抢不到，后端链扩为四级**：
+>
+> **变更后拓扑**：`deepseek-flash`（① 一级，`retry=2`）→ `deepseek-v4-flash`（② 同平台回落）→ `agnes-2.5-flash`（③ 三级）→ `gemini-3-flash-preview`（④ 兜底）
+>
+> - **触发事件**：当天首次手动触发 Actions（run `39431785927`，13:38 UTC）后，日志出现 3 条 `[analyzer] deepseek-flash 调用失败: 429 Client Error: Too Many Requests`，3 次调用**全部**落到 `agnes-2.5-flash`。任务状态仍是 `success`（降级链路按设计工作），但**主力模型被悄悄换掉了** —— 这正是 `llm_backend` 字段存在的意义。
+> - **根因（用真实 Key 现场复现，非猜测）**：
+>
+>   | 模型 ID | 同一时刻实测结果 | 结论 |
+>   |---|---|---|
+>   | `deepseek-flash` | 8 次仅 1 次 200，其余 `429`，错误码分别为 `RateLimitExceeded.EndpointRPMExceeded`、`RateLimitExceeded.EndpointTPMExceeded`、`quota_exceeded_error: rps exhausted` | **新模型的全局共享速率池被打满**（0.25s 内即返回，与请求体大小无关） |
+>   | `deepseek-v4-flash` | 3/3 全 200（同 Key、同端点、同参数） | 排除 Key 失效、参数非法、网络问题 |
+>   | `sensenova-6.8-flash-lite` / `glm-5.2` | 均 200 | 排除账户整体权限 |
+>   | `deepseek-v4.1-flash` | `403 model is not available in the current token plan` | 该 ID 存在但不在套餐内；**V4.1 的正式 ID 确为 `deepseek-flash`**（`GET /v1/models` 权限列表同时列出 `deepseek-flash` 与 `deepseek-v4.1-flash`，印证官方文档） |
+>
+>   即：**不是代码或参数问题**。`reasoning_effort=low` + `max_tokens=12000` 在两个商汤 DeepSeek 上都被验证可用（上一节已核对文档参数表）。
+> - **处置（方案：抢一次 + 回落旧模型）**：
+>   · `config.py` 新增② `deepseek-v4-flash` 后端块，与①共用 `SENSENOVA_API_KEY` / `SENSENOVA_BASE_URL`，模型名走新环境变量 `DEEPSEEK_LEGACY_MODEL`（默认 `deepseek-v4-flash`，**无需配 Secret**）；
+>   · ①增加 `"retry": 2`，`analyzer._post` 支持该字段：仅对 **429/502/503** 按 `_RETRY_DELAYS=[1.5s, 4s]` 指数退避重试（官方文档错误表本身建议「速率/额度超限，指数退避重试」）；其余后端 `retry` 缺省为 0，**行为与改动前完全一致**；
+>   · 净效果：抢到 V4.1 就用新模型，抢不到仍留在商汤同代旧模型，不再外溢到 Agnes/Gemini；最坏情况额外耗时 ≈5.5s/次调用，远低于 `call_multi` 的 90s 总时限。
+> - **顺带记录两处文档与实测不一致**（本仓不受影响，仅备查）：`GET /v1/models` 元数据显示 `deepseek-flash` 的 `input_modalities` 仅 `["text"]`、`max_output_length` 为 65536，而模型卡文字称「支持图片输入」「`max_tokens` 上限 393216」。本仓是纯文本研判、且只用到 12000，两个口径都容得下。
+> - **验证（已做，含真实调用）**：
+>   · 离线桩测 17 项全过：429→429→200 恰好发 3 次请求、内置退避为 `1.5s / 4.0s`、重试请求体不变；三次全 429 只发 3 次即返回 `None` 交给下一级；**`retry` 缺省的②③④ 后端 429 时只发 1 次、零 sleep（行为与改动前一致）**；401 不触发重试；502 可重试；`call_multi` 逐级降级后 `llm_backend` 正确留痕为二级。注：**不读 `Retry-After` 响应头**，固定用内置延迟（当前实现如此，若日后要做尊重服务端 Retry-After 需另行改动）。
+>   · **真实 Key 端到端 3 次调用**（与 CI 相同的 3 次调用节奏）：第 1 次 `deepseek-flash` 连续 429、退避用尽后由 `deepseek-v4-flash` 兜住（总耗时 8.0s）；第 2、3 次 `deepseek-flash` 直接命中（1.3s / 1.4s）。**3 次里 2 次用上新模型、0 次外溢到 Agnes/Gemini** —— 对比改动前"3 次全部 429 后全落 Agnes"，退避重试确实提高了抢中率。
+>   · 单次抢中率仍偏低（本次 2/3、前节采样 1/8），说明该模型限流是**全局池、随时段波动**；若日后连续多日 `llm_backend` 都是 `deepseek-v4-flash`，说明新模型持续抢不到，可把①②顺序对调（改 `config.py` 里两个块的位置即可，不必动代码）。
+>   · `py_compile` 通过；`import config` 断言 `BACKENDS` 4 项、顺序、`retry` 字段与①②共用 Key/端点均正确。
+
 > **故障追溯能力新增（2026-09-17）**：产物 `latest.json` 新增 **`llm_backend`** 字段，记录本轮**实际生效的后端名**（如 `deepseek-flash`）；若三个后端全失败、已回退摘录，该字段为 `null`。
+
 > 增设原因：`BACKENDS[].name` 原先**只用于日志打印、不落库**，导致 `2026-08-26` / `09-13` / `09-16` 三次「今日总览 5 区块全空」故障时**无法从产物反查是哪家模型挂的**，只能靠「全部后端全挂才可能全空」反推。现可直接查该字段定位。
 > 语义说明：记录的是**本进程内最后一次成功**的后端。一日内多次调用若走了不同后端，取最后一次——足以判断「整体是否降级」，不追求逐次精确。
 >
@@ -325,7 +354,7 @@ douban-tracker/
 | `DOUBAN_GROUP_URLS` | 追踪的豆瓣小组 URL，逗号分隔（group 模式；topic 模式可留空） |
 | `DOUBAN_TARGET_USER` | 楼主昵称（两种模式共用，用于过滤发言） |
 | `SCRAPE_MODE` | `topic`（默认/开启）或 `group`（切回旧模式） |
-| `SENSENOVA_API_KEY` | 一级后端 key（DeepSeek V4.1 Flash，商汤平台） |
+| `SENSENOVA_API_KEY` | 商汤平台 key，**一级（V4.1 Flash）与二级（V4 Flash）共用** |
 | `AGNES_API_KEY` | 二级后端 key（agnes-2.5-flash） |
 | `GEMINI_API_KEY` | 兜底后端 key（gemini-3-flash-preview） |
 | `KEEP_IMG_DAYS` | 图片保留天数（默认 `30`；发言图片按日期分目录，过期自动清理） |
