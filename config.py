@@ -32,6 +32,8 @@ BACKENDS = [
         #  Model ID 是 `deepseek-flash`（不带版本号），官方文档对应「DeepSeek V4.1 Flash」；
         #    旧版 V4 Flash 的 ID 仍是 `deepseek-v4-flash`，两个模型在商汤平台并存。
         #  reasoning_effort=low 轻思考（实测 12s→2.6s 且 content 稳定非空）+ max_tokens 给足
+        #  思考模式下 temperature/presence_penalty/frequency_penalty 不生效（官方文档），
+        #    analyzer._post 的 temperature=0.3 是兼容多家后端的空转参数；max_tokens 与思考链共用配额。
         "name": "deepseek-flash",
         "base_url": os.getenv("SENSENOVA_BASE_URL", "https://token.sensenova.cn/v1"),
         "api_key": os.getenv("SENSENOVA_API_KEY", ""),
