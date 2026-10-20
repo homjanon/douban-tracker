@@ -186,11 +186,11 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 
 
 
-### LLM 三级后端（DeepSeek-V4-Flash 一级 + Agnes 2.5 二级 + Gemini 3 Flash 兜底）
+### LLM 三级后端（DeepSeek V4.1 Flash 一级 + Agnes 2.5 二级 + Gemini 3 Flash 兜底）
 
 按顺序尝试，首个有 key 且成功即生效；**每日 3 次 LLM 调用**（摘要 / 持仓昵称研判 / 今日总览+画像修订合并，2026-08-20 优化，原先 4 次）：
 
-1. **商汤 DeepSeek-V4-Flash** `deepseek-v4-flash`（复用 `SENSENOVA_API_KEY`，商汤平台，一级；`reasoning_effort=low` 轻思考 + `max_tokens=12000`，实测 12s→2.6s 且 content 稳定非空）
+1. **商汤 DeepSeek V4.1 Flash** `deepseek-flash`（复用 `SENSENOVA_API_KEY`，商汤平台，一级；`reasoning_effort=low` 轻思考 + `max_tokens=12000`，实测 12s→2.6s 且 content 稳定非空）
 
 2. **Agnes AI** `agnes-2.5-flash`（免费多模态，二级）
 
@@ -225,7 +225,21 @@ Actions 每日产出的 `reports/YYYY-MM-DD.md` 与 Pages 看板（`docs/index.h
 > - ⚠️ **待人工处理**：GitHub Secrets 中的 `ZHIPU_API_KEY` 建议删除（代码已不读取；同批残留还有 `NVIDIA_API_KEY`、`IMA_API_KEY`、`IMA_CLIENT_ID`）。
 > - **验证**：`py_compile` 通过；`BACKENDS` 3 项、顺序正确；降级链路 11 项冒烟测试全过（各级成功 / 逐级降级 / 全挂返回 None + `llm_backend` 留痕）；端点探测 DeepSeek 与 Agnes 均返回 401（端点正确，仅缺授权）。
 
-> **故障追溯能力新增（2026-09-17）**：产物 `latest.json` 新增 **`llm_backend`** 字段，记录本轮**实际生效的后端名**（如 `deepseek-v4-flash`）；若三个后端全失败、已回退摘录，该字段为 `null`。
+> **模型链变更记录（2026-10-20）—— 一级后端 DeepSeek V4 Flash → DeepSeek V4.1 Flash**：
+>
+> **变更后拓扑**：`deepseek-flash`（① 一级）→ `agnes-2.5-flash`（② 二级）→ `gemini-3-flash-preview`（③ 兜底）
+>
+> - **Model ID 关键坑**：新模型 ID 是 **`deepseek-flash`**（**不带版本号**），不是 `deepseek-v4.1-flash`。商汤官方文档模型表与模型卡 `model_id:` 两处均为 `deepseek-flash` ↔「DeepSeek V4.1 Flash」；旧版「DeepSeek V4 Flash」（版本 0731 正式版，ID `deepseek-v4-flash`）在文档里与新版**并列在同一张模型表中**。这意味着按直觉填 `deepseek-v4-flash` 不会报错、只会**静默继续跑旧模型**，因此改动后务必以 `latest.json` 的 `llm_backend` 核对实际生效方。
+> - **接入参数零改动**：`base_url` `https://token.sensenova.cn/v1`、`/chat/completions` 端点、`SENSENOVA_API_KEY` 鉴权（官方文档：与 OpenAI 兼容 / Anthropic / Responses 接口共用同一 Key）、`reasoning_effort=low`、`max_tokens=12000` 全部原样保留。新模型 `reasoning_effort` 原生支持 `none`/`low`/`high`/`max`（默认 `high`），`low` 依然有效；其 `max_tokens` 默认 131072、思考内容与输出共用该配额，12000 上限不变。
+> - **新模型能力增量（本仓暂未使用）**：552B MoE、上下文最高 1M tokens、支持图片输入、`response_format` 在 `json_object` 之外还支持 `json_schema`。本仓仍走纯文本研判 + 现有 JSON 提取路径，未启用多模态与 `json_schema`。
+> - **同步范围**：`config.py`（一级后端块 `name`/`model` 默认值 + 头部 docstring + 段标题）、`.env.example`、`analyzer.py` 头部 docstring、本文件（章节标题 / 后端列表 / Secrets 表 / `llm_backend` 举例）。环境变量名 `DEEPSEEK_MODEL` **未改**（仍是一级后端的模型名开关）；CI workflow 只注入 `SENSENOVA_API_KEY`、不设 `DEEPSEEK_MODEL`，故模型名由 `config.py` 默认值生效，无需改 Secrets。
+> - **历史记录保持原样**：上方 2026-09-17 / 2026-10-01 两条记录及 `tracker.py`、`config.py` 中的历史注记里的 `deepseek-v4-flash` 属故障溯源留痕，不改写。
+> - ⚠️ **验证状态（诚实记录）**：
+>   · 已通过：`py_compile`（config / analyzer / tracker / scraper）；`import config` 断言 `BACKENDS` 仍 3 项、顺序为 `deepseek-flash` → `agnes-2.5-flash` → `gemini-3-flash-preview`，一级的 `extra={"reasoning_effort":"low"}`、`max_tokens=12000`、`base_url` 均未变。
+>   · **未通过验证的部分**：**尚未做带真实 Key 的调用**。以 `Bearer sk-invalid-probe` 匿名 POST `/v1/chat/completions` 时，`deepseek-flash`、`deepseek-v4-flash`、以及故意编造的 `nonexistent-model-xyz` **三者返回完全一致**（HTTP 401 `{"error":{"code":16,"message":"Forbidden"}}`）——商汤侧**鉴权先于模型名校验**，故无 Key 时既探不通、也无法反证该 ID 是否被放行。端点连通性本身已确认。
+>   · 首次 CI 运行后请核对 `data/latest.json` 的 `llm_backend`：为 `deepseek-flash` 即新模型已生效；若显示 `deepseek-v4-flash` 说明 Key 侧仍在跑旧 ID（需查 Secrets 是否覆盖了 `DEEPSEEK_MODEL`）；若降级为 `agnes-2.5-flash`/`gemini-3-flash`，说明新 ID 未被该 Key 放行，此时回退只需把 `config.py` 的 model/name 改回 `deepseek-v4-flash`。
+
+> **故障追溯能力新增（2026-09-17）**：产物 `latest.json` 新增 **`llm_backend`** 字段，记录本轮**实际生效的后端名**（如 `deepseek-flash`）；若三个后端全失败、已回退摘录，该字段为 `null`。
 > 增设原因：`BACKENDS[].name` 原先**只用于日志打印、不落库**，导致 `2026-08-26` / `09-13` / `09-16` 三次「今日总览 5 区块全空」故障时**无法从产物反查是哪家模型挂的**，只能靠「全部后端全挂才可能全空」反推。现可直接查该字段定位。
 > 语义说明：记录的是**本进程内最后一次成功**的后端。一日内多次调用若走了不同后端，取最后一次——足以判断「整体是否降级」，不追求逐次精确。
 >
@@ -309,7 +323,7 @@ douban-tracker/
 | `DOUBAN_GROUP_URLS` | 追踪的豆瓣小组 URL，逗号分隔（group 模式；topic 模式可留空） |
 | `DOUBAN_TARGET_USER` | 楼主昵称（两种模式共用，用于过滤发言） |
 | `SCRAPE_MODE` | `topic`（默认/开启）或 `group`（切回旧模式） |
-| `SENSENOVA_API_KEY` | 一级后端 key（DeepSeek-V4-Flash，商汤平台） |
+| `SENSENOVA_API_KEY` | 一级后端 key（DeepSeek V4.1 Flash，商汤平台） |
 | `AGNES_API_KEY` | 二级后端 key（agnes-2.5-flash） |
 | `GEMINI_API_KEY` | 兜底后端 key（gemini-3-flash-preview） |
 | `KEEP_IMG_DAYS` | 图片保留天数（默认 `30`；发言图片按日期分目录，过期自动清理） |

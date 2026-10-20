@@ -1,7 +1,7 @@
 """配置：从环境变量读取，缺失时用默认值。
 
-LLM 后端优先级（DeepSeek-V4-Flash 一级 + Agnes 2.5 二级 + Gemini 3 Flash 兜底）：
-  1) 商汤 DeepSeek-V4-Flash（deepseek-v4-flash，复用 SENSENOVA_API_KEY）—— 一级
+LLM 后端优先级（DeepSeek V4.1 Flash 一级 + Agnes 2.5 二级 + Gemini 3 Flash 兜底）：
+  1) 商汤 DeepSeek V4.1 Flash（deepseek-flash，复用 SENSENOVA_API_KEY）—— 一级
   2) Agnes AI agnes-2.5-flash —— 免费多模态，二级
   3) Google Gemini 3 Flash（gemini-3-flash-preview，GEMINI_API_KEY）—— 免费，兜底
 
@@ -25,15 +25,17 @@ SCRAPE_MODE = os.getenv("SCRAPE_MODE", "topic").strip().lower()
 
 HEADLESS = os.getenv("HEADLESS", "false").lower() != "false"
 
-# ============ LLM 后端（DeepSeek-V4-Flash 一级 + Agnes 2.5 二级 + Gemini 3 Flash 兜底）============
+# ============ LLM 后端（DeepSeek V4.1 Flash 一级 + Agnes 2.5 二级 + Gemini 3 Flash 兜底）============
 BACKENDS = [
     {
-        # ① 一级：商汤 DeepSeek-V4-Flash（复用 SENSENOVA_API_KEY，同商汤平台），参考 qiugecaozuo 仓 call_llm.py
+        # ① 一级：商汤 DeepSeek V4.1 Flash（复用 SENSENOVA_API_KEY，同商汤平台），参考 qiugecaozuo 仓 call_llm.py
+        #  Model ID 是 `deepseek-flash`（不带版本号），官方文档对应「DeepSeek V4.1 Flash」；
+        #    旧版 V4 Flash 的 ID 仍是 `deepseek-v4-flash`，两个模型在商汤平台并存。
         #  reasoning_effort=low 轻思考（实测 12s→2.6s 且 content 稳定非空）+ max_tokens 给足
-        "name": "deepseek-v4-flash",
+        "name": "deepseek-flash",
         "base_url": os.getenv("SENSENOVA_BASE_URL", "https://token.sensenova.cn/v1"),
         "api_key": os.getenv("SENSENOVA_API_KEY", ""),
-        "model": os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"),
+        "model": os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
         "timeout": int(os.getenv("SENSENOVA_TIMEOUT", "120")),
         "max_tokens": 12000,
         "extra": {"reasoning_effort": "low"},
