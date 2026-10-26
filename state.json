@@ -71,7 +71,11 @@
     "阿中": "中国电影",
     "欢欢": "欢瑞世纪",
     "雪人": "雪人集团",
-    "大连": "大连圣亚"
+    "大连": "大连圣亚",
+    "幸福": "幸福蓝海",
+    "小粤": "粤传媒",
+    "阿博": "博纳影业",
+    "创成长": "创业板成长etf"
   },
   "positions": {
     "positions": [
@@ -98,33 +102,9 @@
         "current_price": "36.43（-2.75%）"
       },
       {
-        "name": "cc（华安文体健康混合A）",
-        "code": "001532",
-        "action": "持有",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "「我今天去的cc啊」；「昨天买的（内蒙）今天就去了cc」",
-        "last_note": "未追加，仅表示不满，「不满意😂 理论上应该比我另外…",
-        "first_seen": "10-20",
-        "current_price": "4.5340（2.35%）"
-      },
-      {
-        "name": "中文在线(1385)",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "率先重新建仓",
-        "last_note": "率先重新建仓",
-        "first_seen": "10-26",
-        "current_price": "暂无"
-      },
-      {
         "name": "雪人集团",
-        "code": "",
-        "action": "买入",
+        "code": "002639",
+        "action": "持有",
         "category": "",
         "cost_price": "暂无",
         "market_value": "暂无",
@@ -134,8 +114,8 @@
         "current_price": "暂无"
       },
       {
-        "name": "上海电影(sy)",
-        "code": "",
+        "name": "上海电影",
+        "code": "601595",
         "action": "买入",
         "category": "",
         "cost_price": "暂无",
@@ -144,6 +124,30 @@
         "last_note": "开单2894元，比前次2994降1元",
         "first_seen": "10-26",
         "current_price": "暂无"
+      },
+      {
+        "name": "幸福蓝海",
+        "code": "300528",
+        "action": "持有",
+        "category": "",
+        "cost_price": "",
+        "note": ""
+      },
+      {
+        "name": "粤传媒",
+        "code": "002181",
+        "action": "持有",
+        "category": "",
+        "cost_price": "",
+        "note": ""
+      },
+      {
+        "name": "大连圣亚",
+        "code": "600593",
+        "action": "持有",
+        "category": "",
+        "cost_price": "",
+        "note": ""
       }
     ]
   },
