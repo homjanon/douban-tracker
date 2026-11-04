@@ -75,7 +75,8 @@
     "幸福": "幸福蓝海",
     "小粤": "粤传媒",
     "阿博": "博纳影业",
-    "创成长": "创业板成长etf"
+    "创成长": "创业板成长etf",
+    "asd": "埃斯顿"
   },
   "positions": {
     "positions": [
@@ -157,9 +158,9 @@
       },
       {
         "name": "博纳影业（bn）",
-        "code": "",
+        "code": "001330",
         "action": "持有",
-        "category": "",
+        "category": "传媒",
         "cost_price": "暂无",
         "market_value": "暂无",
         "note": "「兑现昨天bn 今天sy 回收资金」，bn触发后资金「要还给幸福」",
@@ -169,7 +170,7 @@
       },
       {
         "name": "中国电影（中影）",
-        "code": "",
+        "code": "600977",
         "action": "持有",
         "category": "",
         "cost_price": "暂无",
@@ -181,7 +182,7 @@
       },
       {
         "name": "中韩半导体ETF",
-        "code": "",
+        "code": "513310",
         "action": "买入",
         "category": "",
         "cost_price": "暂无",
@@ -189,18 +190,6 @@
         "note": "「今天果断充值一些买到招招账户去了」；上周溢价4%已买，此前买在交易账户。",
         "last_note": "溢价率逼近13%，等明日10:30开盘",
         "first_seen": "10-28",
-        "current_price": "暂无"
-      },
-      {
-        "name": "中影（中国电影）",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "昨日换仓进来",
-        "last_note": "昨日换仓进来",
-        "first_seen": "10-29",
         "current_price": "暂无"
       }
     ]
