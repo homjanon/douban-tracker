@@ -194,20 +194,8 @@
         "current_price": "3.957（0.89%）"
       },
       {
-        "name": "易方达全球",
-        "code": "",
-        "action": "买入",
-        "category": "",
-        "cost_price": "暂无",
-        "market_value": "暂无",
-        "note": "新买观察仓，套两天后回本",
-        "last_note": "新买观察仓，套两天后回本",
-        "first_seen": "11-04",
-        "current_price": "暂无"
-      },
-      {
         "name": "asd（埃斯顿）",
-        "code": "",
+        "code": "002747",
         "action": "买入",
         "category": "",
         "cost_price": "暂无",
