@@ -853,6 +853,10 @@ def main():
         "investor_profile": load_investor_profile(),  # 投资风格分析（已增量更新）
         "nickname_rules": load_nickname_rules(),      # 昵称规律（结构化列表）
         "nickname_map": st["nickname_map"],           # 已收录映射
+        # 个股收益（2026-11-11 新增）：由人工反推写入 state.json，此处只透传，不参与 LLM 生成。
+        # 键集是固定的，漏了这一行 CI 重建 latest.json 时字段会静默丢失，前端折叠区就空了。
+        "stock_pnl": st.get("stock_pnl", []),
+        "stock_pnl_note": st.get("stock_pnl_note", ""),
         "pending_positions": analysis["new_positions"],    # 待确认（LLM 研判辅助参考）
         "pending_nicknames": analysis["new_nicknames"],    # 待确认
         "pending_rules": analysis["new_rules"],            # 待确认（昵称规律建议）
