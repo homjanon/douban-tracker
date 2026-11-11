@@ -89,6 +89,34 @@ function render(d) {
     ]) + '</div>';
   }
 
+  // ①-b 个股收益（2026-11-11 新增，默认折叠，交互与「已收录映射」一致）
+  // 数据来自 state.json.stock_pnl，经 tracker.py 透传到 latest.json；只收能确证的买卖或他自述收益。
+  if (d.stock_pnl && d.stock_pnl.length) {
+    const pn = d.stock_pnl;
+    h += '<div class="card"><div class="fold-hd"><h3>💰 个股收益</h3>'
+       + '<button type="button" class="fold-btn" data-fold="pnl" data-n="' + pn.length + '">'
+       + '展开（' + pn.length + '）</button></div>'
+       + '<div id="fold-pnl" style="display:none">'
+       + table([
+           ['标的','口径','买入','卖出/现价','收益','证据','依据'],
+           ...pn.map(r => {
+             const v = r.pnl_pct;
+             const pct = (v == null) ? '暂无' : (v > 0 ? '+' : '') + v + '%';
+             return [
+               {text: r.name + (r.code ? '（' + r.code + '）' : '')},
+               {text: r.kind || ''},
+               {text: pnlSide(r.entry_price, r.entry_date)},
+               {text: pnlSide(r.exit_price, r.exit_date)},
+               {text: pct, cls: (v == null) ? '' : (v < 0 ? 'neg' : 'pos')},
+               {text: r.grade || ''},
+               {text: r.basis || ''}
+             ];
+           })
+         ])
+       + (d.stock_pnl_note ? '<div style="margin-top:8px;color:#999;font-size:12px;line-height:1.6">' + esc(d.stock_pnl_note) + '</div>' : '')
+       + '</div></div>';
+  }
+
   // ② 今日总览
   const ov = d.overview || {};
   if (Object.values(ov).some(v => v)) {
@@ -266,6 +294,13 @@ function priceCell(s) {
   let cls = '';
   if (m) cls = m[1].startsWith('-') ? 'neg' : 'pos';
   return {text: s, cls};
+}
+
+// 个股收益的买/卖单元格：价格 + 日期，缺哪项就只展示另一项（自述收益常无价格）
+function pnlSide(price, date) {
+  const p = (price == null || price === '') ? '' : String(price);
+  const dt = date ? String(date) : '';
+  return [p, dt].filter(Boolean).join(' · ') || '暂无';
 }
 
 // 提及日期是否超 5 天（MM-DD 或 YYYY-MM-DD）
