@@ -5,6 +5,7 @@
 持仓/风格/昵称 从 state.json / investor_profile.json / nickname_rules 自动填充；
 今日总览/发言聚合 由 LLM 从当日发言提取。LLM 的持仓/昵称产出仅作【待确认建议】，不污染 state。
 """
+import copy
 import datetime
 import json
 import os
@@ -35,7 +36,14 @@ def _load_json_tolerant(fh):
     return json.loads(text)
 
 
+# 个股收益表只由本机 Qoder 反推流程（模式 B）写入 state.json；CI 侧一律只读。
+# 载入时留底、落盘前强制还原，防止后续任何环节（含 LLM 建议回写）误改这两个键。
+_PNL_KEYS = ("stock_pnl", "stock_pnl_note")
+_PNL_READONLY = None
+
+
 def load_state():
+    global _PNL_READONLY
     try:
         with open(STATE_FILE, encoding="utf-8") as f:
             st = _load_json_tolerant(f)
@@ -46,10 +54,19 @@ def load_state():
     st.setdefault("total_archived", 0)        # 累计存档发言数（本次结果展示）
     st.setdefault("nickname_map", {})
     st.setdefault("positions", {"positions": []})
+    _PNL_READONLY = copy.deepcopy({k: st[k] for k in _PNL_KEYS if k in st})
     return st
 
 
 def save_state(st):
+    if _PNL_READONLY is not None:
+        for k in _PNL_KEYS:
+            if k in _PNL_READONLY:
+                if st.get(k) != _PNL_READONLY[k]:
+                    print("🔒 %s 被改动，已还原为载入时的原值（个股收益表只由本机反推流程维护）" % k)
+                    st[k] = copy.deepcopy(_PNL_READONLY[k])
+            else:
+                st.pop(k, None)               # 载入时没有的键，CI 不许凭空造出来
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(st, f, ensure_ascii=False, indent=2)
 
