@@ -392,8 +392,12 @@ function mdText(s) {
     const m = part.match(/^!\[图片\]\(([^)]+)\)$/);
     if (m) {
       let src = m[1];
-      if (src.indexOf('data/images/') === 0) src = '../' + src;
-      return '<img src="' + esc(src) + '" class="post-img" referrerpolicy="no-referrer" loading="lazy">';
+      let raw=null;
+      if(src.indexOf('data/images/')===0) raw='https://raw.githubusercontent.com/homjanon/douban-tracker/main/'+src;
+      else if(src.indexOf('https://raw.githubusercontent.com/homjanon/douban-tracker/main/')===0) raw=src;
+      if(raw){var px='https://proxy.hellohopo.dpdns.org/?url='+encodeURIComponent(raw);
+      return '<img src="'+esc(px)+'" data-raw="'+esc(raw)+'" onerror="this.onerror=null;this.src=this.dataset.raw" class="post-img" referrerpolicy="no-referrer" loading="lazy">';}
+      return '<img src="'+esc(src)+'" class="post-img" referrerpolicy="no-referrer" loading="lazy">';
     }
     return esc(part).replace(/\n/g, '<br>');
   }).join('');
