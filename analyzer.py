@@ -1,7 +1,7 @@
 """研判层：LLM 三级后端 + 鲁棒提取 + 中性归纳 + 持仓/昵称判断。
 
-后端优先级（商汤 DeepSeek V4.1 Flash 抢一级 + V4 Flash 回落 + Agnes 2.5 + Gemini 3 Flash 兜底）：
-  deepseek-flash → deepseek-v4-flash → agnes-2.5-flash → gemini-3-flash-preview
+后端优先级（商汤 DeepSeek V4.1 Flash 抢一级 + V4 Flash 回落 + Agnes 3.0 + Gemini 3 Flash 兜底）：
+  deepseek-flash → deepseek-v4-flash → agnes-3.0-flash → gemini-3-flash-preview
 首个有 key 且调用成功即生效；全部失败回退发言摘录。
 
 与 xueqiu-tracker 的差异：
