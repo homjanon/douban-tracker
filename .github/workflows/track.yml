@@ -96,14 +96,14 @@ jobs:
           mkdir -p _site
           rsync -a --exclude='.git' --exclude='_site' --exclude='data/images' --exclude='__pycache__' --exclude='_scratch' --exclude='backup' ./ _site/
       - name: 打包站点产物
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@v4
         with:
           path: _site
           retention-days: 1
 
       - name: 部署到 GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
