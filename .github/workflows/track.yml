@@ -91,10 +91,14 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: 每日追踪更新 $(date +%F)"
           git push
 
+      - name: 组装站点（排除 data/images，图片走代理/raw，避免 Pages artifact 过大）
+        run: |
+          mkdir -p _site
+          rsync -a --exclude='.git' --exclude='_site' --exclude='data/images' --exclude='__pycache__' --exclude='_scratch' --exclude='backup' ./ _site/
       - name: 打包站点产物
         uses: actions/upload-pages-artifact@v5
         with:
-          path: .                     # 发布整个仓库：含 docs/(看板) 与 data/(latest.json)
+          path: _site
           retention-days: 1
 
       - name: 部署到 GitHub Pages
