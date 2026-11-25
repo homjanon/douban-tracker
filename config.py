@@ -1,9 +1,9 @@
 """配置：从环境变量读取，缺失时用默认值。
 
-LLM 后端优先级（DeepSeek V4.1 Flash 抢一级 + V4 Flash 回落 + Agnes 2.5 + Gemini 3 Flash 兜底）：
+LLM 后端优先级（DeepSeek V4.1 Flash 抢一级 + V4 Flash 回落 + Agnes 3.0 + Gemini 3 Flash 兜底）：
   1) 商汤 DeepSeek V4.1 Flash（deepseek-flash，复用 SENSENOVA_API_KEY）—— 一级（新模型，全局限流紧，带退避重试）
   2) 商汤 DeepSeek V4 Flash（deepseek-v4-flash，同 Key 同平台）—— 二级回落（实测稳定 200）
-  3) Agnes AI agnes-2.5-flash —— 免费多模态，三级
+  3) Agnes AI agnes-3.0-flash —— 免费多模态，三级
   4) Google Gemini 3 Flash（gemini-3-flash-preview，GEMINI_API_KEY）—— 免费，兜底
 
 抓取：豆瓣话题页 + DOUBAN_COOKIE 登录态（HTTP 直连，无 WAF/Playwright）。
@@ -26,7 +26,7 @@ SCRAPE_MODE = os.getenv("SCRAPE_MODE", "topic").strip().lower()
 
 HEADLESS = os.getenv("HEADLESS", "false").lower() != "false"
 
-# ============ LLM 后端（V4.1 Flash 抢一级 + V4 Flash 回落 + Agnes 2.5 + Gemini 3 Flash 兜底）============
+# ============ LLM 后端（V4.1 Flash 抢一级 + V4 Flash 回落 + Agnes 3.0 + Gemini 3 Flash 兜底）============
 BACKENDS = [
     {
         # ① 一级：商汤 DeepSeek V4.1 Flash（复用 SENSENOVA_API_KEY，同商汤平台），参考 qiugecaozuo 仓 call_llm.py
@@ -58,11 +58,11 @@ BACKENDS = [
     },
     {
         # ③ 三级：Agnes AI 免费多模态
-        #  2026-09-17：agnes-2.0-flash 已被官方标记「已废弃」，升级为 agnes-2.5-flash（仅改模型名）
-        "name": "agnes-2.5-flash",
+        #  2026-09-17：agnes-2.0-flash 已被官方标记「已废弃」，升级为 agnes-3.0-flash（仅改模型名）
+        "name": "agnes-3.0-flash",
         "base_url": os.getenv("AGNES_BASE_URL", "https://apihub.agnes-ai.com/v1"),
         "api_key": os.getenv("AGNES_API_KEY", ""),
-        "model": os.getenv("AGNES_MODEL", "agnes-2.5-flash"),
+        "model": os.getenv("AGNES_MODEL", "agnes-3.0-flash"),
         "timeout": int(os.getenv("AGNES_TIMEOUT", "120")),
         "max_tokens": 12000,
     },
